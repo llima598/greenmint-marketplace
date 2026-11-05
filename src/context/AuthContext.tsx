@@ -1,0 +1,104 @@
+
+import {
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
+
+import { api } from '../services/api'
+import {
+  AuthContext,
+  type AuthResponse,
+  type User,
+} from './AuthContextDefinition'
+
+interface AuthProviderProps {
+  children: ReactNode
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null)
+
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem('greenmint-token')
+  })
+
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadUser() {
+      if (!token) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const response = await api.get<User>('/auth/me', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        setUser(response.data)
+      } catch {
+        localStorage.removeItem('greenmint-token')
+        setToken(null)
+        setUser(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadUser()
+  }, [token])
+
+  async function login(email: string, password: string) {
+    const response = await api.post<AuthResponse>('/auth/login', {
+      email,
+      password,
+    })
+
+    localStorage.setItem('greenmint-token', response.data.token)
+
+    setToken(response.data.token)
+    setUser(response.data.user)
+  }
+
+  async function register(
+    name: string,
+    email: string,
+    password: string,
+  ) {
+    const response = await api.post<AuthResponse>('/auth/register', {
+      name,
+      email,
+      password,
+    })
+
+    localStorage.setItem('greenmint-token', response.data.token)
+
+    setToken(response.data.token)
+    setUser(response.data.user)
+  }
+
+  function logout() {
+    localStorage.removeItem('greenmint-token')
+    setToken(null)
+    setUser(null)
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        login,
+        register,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
