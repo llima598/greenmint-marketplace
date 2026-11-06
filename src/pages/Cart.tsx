@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useCart } from '../context/useCart'
 import { api } from '../services/api'
+import PriceChangeNotice from '../components/PriceChangeNotice'
 
 interface CouponResponse {
   code: string
@@ -132,6 +133,8 @@ function Cart() {
       <h1 className="mb-8 text-3xl font-bold">
         Meu carrinho
       </h1>
+
+      <PriceChangeNotice />
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-[#241612] p-10 text-center">

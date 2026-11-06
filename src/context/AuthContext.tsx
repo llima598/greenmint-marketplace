@@ -4,6 +4,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../services/api'
 import {
@@ -17,6 +18,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
 
   const [token, setToken] = useState<string | null>(() => {
@@ -58,6 +60,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       password,
     })
 
+    // Troca de usuário: descarta dados privados do usuário anterior.
+    queryClient.removeQueries({ queryKey: ['orders'] })
+
     localStorage.setItem('greenmint-token', response.data.token)
 
     setToken(response.data.token)
@@ -85,6 +90,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.removeItem('greenmint-token')
     setToken(null)
     setUser(null)
+
+    // Remove do cache os dados privados da sessão encerrada.
+    queryClient.removeQueries({ queryKey: ['orders'] })
   }
 
   return (

@@ -5,12 +5,15 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 import type { NFT } from '../data/nfts'
+import { fetchNfts } from '../services/nfts'
 import {
   CartContext,
   type AppliedCoupon,
   type CartItem,
+  type PriceChange,
 } from './CartContextDefinition'
 import { useAuth } from './useAuth'
 
@@ -22,6 +25,11 @@ interface CartState {
   key: string
   items: CartItem[]
   coupon: AppliedCoupon | null
+}
+
+interface PriceChangeState {
+  key: string
+  changes: PriceChange[]
 }
 
 function normalizePrice(price: unknown): number | null {
@@ -144,6 +152,114 @@ export function CartProvider({
 
     return readCoupon(couponStorageKey)
   }, [cartState, storageKey, couponStorageKey])
+
+  const [priceChangeState, setPriceChangeState] =
+    useState<PriceChangeState>({ key: '', changes: [] })
+
+  // Só exibe alterações do carrinho atual e de itens que ainda estão nele.
+  const priceChanges = useMemo(() => {
+    if (priceChangeState.key !== storageKey) {
+      return []
+    }
+
+    return priceChangeState.changes.filter((change) =>
+      items.some((item) => item.id === change.id),
+    )
+  }, [priceChangeState, storageKey, items])
+
+  // Mesmo cache ['nfts'] do catálogo: eventos `nft.updated` do Socket.IO,
+  // invalidações na reconexão e refetch após conflito de preço no checkout
+  // passam por aqui e atualizam o carrinho.
+  const { data: catalog } = useQuery({
+    queryKey: ['nfts'],
+    queryFn: fetchNfts,
+  })
+
+  useEffect(() => {
+    if (isLoading || !catalog || items.length === 0) {
+      return
+    }
+
+    const detected: PriceChange[] = []
+
+    for (const item of items) {
+      const latest = catalog.find((nft) => nft.id === item.id)
+
+      if (!latest) {
+        continue
+      }
+
+      const latestPrice = normalizePrice(latest.price)
+
+      if (latestPrice !== item.price) {
+        detected.push({
+          id: item.id,
+          name: item.name,
+          previousPrice: item.price,
+          currentPrice: latestPrice,
+        })
+      }
+    }
+
+    if (detected.length === 0) {
+      return
+    }
+
+    const latestById = new Map(
+      detected.map((change) => [change.id, change.currentPrice]),
+    )
+
+    // O efeito sincroniza o carrinho (estado local) com o cache de NFTs
+    // do TanStack Query, que é atualizado por eventos do Socket.IO.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setCartState((currentState) => {
+      const currentItems =
+        currentState.key === storageKey
+          ? currentState.items
+          : readCart(storageKey)
+
+      const currentCoupon =
+        currentState.key === storageKey
+          ? currentState.coupon
+          : readCoupon(couponStorageKey)
+
+      return {
+        key: storageKey,
+        items: currentItems.map((item) =>
+          latestById.has(item.id)
+            ? { ...item, price: latestById.get(item.id) ?? null }
+            : item,
+        ),
+        coupon: currentCoupon,
+      }
+    })
+
+    setPriceChangeState((currentState) => {
+      const previous =
+        currentState.key === storageKey ? currentState.changes : []
+
+      const merged = new Map(
+        previous.map((change) => [change.id, change]),
+      )
+
+      for (const change of detected) {
+        const existing = merged.get(change.id)
+
+        // Mantém o primeiro preço visto pelo usuário (A → B → C vira A → C).
+        merged.set(change.id, {
+          ...change,
+          previousPrice: existing
+            ? existing.previousPrice
+            : change.previousPrice,
+        })
+      }
+
+      return {
+        key: storageKey,
+        changes: Array.from(merged.values()),
+      }
+    })
+  }, [catalog, items, isLoading, storageKey, couponStorageKey])
 
   useEffect(() => {
     if (isLoading) {
@@ -295,6 +411,12 @@ export function CartProvider({
       items: [],
       coupon: null,
     })
+
+    setPriceChangeState({ key: storageKey, changes: [] })
+  }
+
+  function acknowledgePriceChanges() {
+    setPriceChangeState({ key: storageKey, changes: [] })
   }
 
   return (
@@ -302,11 +424,13 @@ export function CartProvider({
       value={{
         items,
         coupon,
+        priceChanges,
         addToCart,
         removeFromCart,
         updateQuantity,
         setCoupon,
         clearCart,
+        acknowledgePriceChanges,
       }}
     >
       {children}

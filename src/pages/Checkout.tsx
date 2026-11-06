@@ -1,11 +1,13 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 
 import { api } from '../services/api'
 import { useCart } from '../context/useCart'
 import { useAuth } from '../context/useAuth'
+import PriceChangeNotice from '../components/PriceChangeNotice'
 
 interface OrderResponse {
   id: string
@@ -52,10 +54,31 @@ function formatETH(price: unknown): string {
     : 'Preço indisponível'
 }
 
+const PAYMENT_PENDING_ERROR = 'PAYMENT_PENDING'
+
+function getCheckoutErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message === PAYMENT_PENDING_ERROR) {
+    return 'Pagamento em processamento. Aguarde alguns instantes e tente novamente: sua compra não será duplicada.'
+  }
+
+  if (axios.isAxiosError(error) && error.response?.status === 409) {
+    const data = error.response.data as
+      | { message?: string }
+      | undefined
+
+    if (typeof data?.message === 'string') {
+      return data.message
+    }
+  }
+
+  return 'Não foi possível processar o pagamento. Tente novamente.'
+}
+
 function Checkout() {
-  const { items, coupon, clearCart } = useCart()
+  const { items, coupon, clearCart, priceChanges } = useCart()
   const { user, token, isLoading } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [confirmation, setConfirmation] =
     useState<CheckoutConfirmation | null>(null)
@@ -69,6 +92,10 @@ function Checkout() {
   const hasValidPrices = items.every((item) =>
     isValidPrice(item.price),
   )
+
+  // Enquanto houver alteração de preço não reconhecida pelo usuário, a
+  // compra fica bloqueada para impedir a confirmação com cotação antiga.
+  const hasPendingPriceReview = priceChanges.length > 0
 
   const subtotal = items.reduce((sum, item) => {
     const price = isValidPrice(item.price) ? item.price : 0
@@ -181,19 +208,40 @@ function Checkout() {
         throw new Error('A API retornou um total de pedido inválido.')
       }
 
-      const paymentResponse = await api.post<PaymentResponse>(
-        '/payments',
-        {
-          orderId: createdOrder.id,
-          total: finalTotal,
-          paymentMethod: 'ETH',
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+      let paymentResponse
+
+      try {
+        paymentResponse = await api.post<PaymentResponse>(
+          '/payments',
+          {
+            orderId: createdOrder.id,
+            total: finalTotal,
+            paymentMethod: 'ETH',
           },
-        },
-      )
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        )
+      } catch (error) {
+        // Pagamento recusado encerra o pedido (estado terminal). A próxima
+        // tentativa precisa gerar uma nova chave de idempotência.
+        if (
+          axios.isAxiosError(error) &&
+          error.response?.status === 402
+        ) {
+          localStorage.removeItem(storageKey)
+        }
+
+        throw error
+      }
+
+      // Pagamento pendente: mantém a chave para que um novo envio recupere
+      // o mesmo pedido em vez de criar outro.
+      if (paymentResponse.data.status === 'pending') {
+        throw new Error(PAYMENT_PENDING_ERROR)
+      }
 
       if (paymentResponse.data.status !== 'approved') {
         throw new Error('O pagamento não foi aprovado.')
@@ -202,6 +250,19 @@ function Checkout() {
       return {
         order: createdOrder,
         payment: paymentResponse.data,
+      }
+    },
+
+    onError: (error) => {
+      // Preço ou disponibilidade mudou: atualiza o catálogo para que o
+      // carrinho exiba a alteração e peça uma nova confirmação.
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 409 &&
+        (error.response.data as { code?: string } | undefined)?.code ===
+          'PRICE_CHANGED'
+      ) {
+        queryClient.invalidateQueries({ queryKey: ['nfts'] })
       }
     },
 
@@ -329,6 +390,8 @@ function Checkout() {
         Revise seu pedido antes de continuar.
       </p>
 
+      <PriceChangeNotice />
+
       <div className="grid items-start gap-10 lg:grid-cols-[1fr_380px]">
         <section className="rounded-2xl border border-white/10 bg-[#241612] p-6 sm:p-8">
           <h2 className="mb-6 text-xl font-bold">
@@ -432,15 +495,17 @@ function Checkout() {
           )}
 
           {checkoutMutation.isError && (
-            <p className="mt-5 text-sm text-red-400">
-              Não foi possível processar o pagamento. Tente novamente.
+            <p role="alert" className="mt-5 text-sm text-red-400">
+              {getCheckoutErrorMessage(checkoutMutation.error)}
             </p>
           )}
 
           <button
             onClick={() => checkoutMutation.mutate()}
             disabled={
-              checkoutMutation.isPending || !hasValidPrices
+              checkoutMutation.isPending ||
+              !hasValidPrices ||
+              hasPendingPriceReview
             }
             className="mt-8 w-full rounded-full bg-[#D9A441] px-6 py-4 font-bold text-[#140D0A] transition hover:bg-[#edbd62] disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -448,7 +513,9 @@ function Checkout() {
               ? 'Processando pagamento...'
               : !hasValidPrices
                 ? 'Preço indisponível'
-                : 'Confirmar compra'}
+                : hasPendingPriceReview
+                  ? 'Revise as alterações de preço'
+                  : 'Confirmar compra'}
           </button>
 
           <p className="mt-5 text-xs leading-5 text-white/40">

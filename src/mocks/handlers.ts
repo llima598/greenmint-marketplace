@@ -7,7 +7,11 @@ interface MockUser {
   id: string
   name: string
   email: string
-  password: string
+  // Hash SHA-256 da senha. Nunca armazenamos a senha em texto puro.
+  passwordHash?: string
+  // Campo legado: usuários salvos antes da correção ainda podem tê-lo.
+  // É migrado para passwordHash no primeiro login bem-sucedido.
+  password?: string
 }
 
 interface MockSession {
@@ -23,6 +27,7 @@ interface MockOrder {
     id: string
     name: string
     price: number | null
+    quantity?: number
   }[]
   total: number
   createdAt: string
@@ -30,6 +35,9 @@ interface MockOrder {
   paymentId?: string
   paidAt?: string
   idempotencyKey?: string
+  // Resumo do conteúdo enviado na criação, usado para detectar reuso
+  // da mesma chave de idempotência com conteúdo diferente.
+  requestFingerprint?: string
 }
 
 type NFTUpdates = Partial<
@@ -73,14 +81,47 @@ const nftVersions = new Map<string, number>(
   ]),
 )
 
+// SHA-256("greenmint:123456"), senha fictícia do usuário demo.
+const DEMO_PASSWORD_HASH =
+  '5249cb2029591536338da22a436fc817f3bbeecc5a6d24e0a63f56b58d984128'
+
 const initialUsers: MockUser[] = [
   {
     id: 'user-demo',
     name: 'Usuário Demo',
     email: 'demo@greenmint.com',
-    password: '123456',
+    passwordHash: DEMO_PASSWORD_HASH,
   },
 ]
+
+// Hash de demonstração (SHA-256 com prefixo fixo). Em produção, o
+// hash seria feito no servidor com um algoritmo lento e salt por usuário
+// (bcrypt, scrypt ou argon2).
+async function hashPassword(password: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`greenmint:${password}`)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// Requisição idêntica = mesmo conteúdo de itens e total.
+function createOrderFingerprint(
+  items: { id: string; price: number | null; quantity?: number }[],
+  total: number,
+): string {
+  return JSON.stringify({
+    items: items
+      .map((item) => ({
+        id: item.id,
+        price: item.price,
+        quantity: item.quantity ?? 1,
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+    total,
+  })
+}
 
 export const handlers = [
       // Validar cupom de desconto
@@ -323,6 +364,7 @@ export const handlers = [
         id: string
         name: string
         price: number | null
+        quantity?: number
       }[]
       total: number
     }
@@ -342,6 +384,10 @@ export const handlers = [
 
     const idempotencyKey = request.headers.get('Idempotency-Key')
     const orders = readStorage<MockOrder[]>('greenmint-orders', [])
+    const requestFingerprint = createOrderFingerprint(
+      body.items,
+      body.total,
+    )
 
     if (idempotencyKey) {
       const existingOrder = orders.find(
@@ -349,6 +395,20 @@ export const handlers = [
           item.userId === user.id &&
           item.idempotencyKey === idempotencyKey,
       )
+
+      if (
+        existingOrder?.requestFingerprint &&
+        existingOrder.requestFingerprint !== requestFingerprint
+      ) {
+        return HttpResponse.json(
+          {
+            code: 'IDEMPOTENCY_CONFLICT',
+            message:
+              'Esta chave de idempotência já foi usada com outro conteúdo.',
+          },
+          { status: 409 },
+        )
+      }
 
       if (existingOrder) {
         return HttpResponse.json(
@@ -368,6 +428,31 @@ export const handlers = [
       }
     }
 
+    // Revalida os preços contra o catálogo atual antes de criar o pedido.
+    // Se algum preço mudou (ou o NFT ficou indisponível), o cliente precisa
+    // revisar o carrinho e confirmar novamente.
+    const staleItems = body.items.filter((item) => {
+      const current = mockNfts.find((nft) => nft.id === item.id)
+
+      return (
+        !current ||
+        current.price === null ||
+        current.price !== item.price
+      )
+    })
+
+    if (staleItems.length > 0) {
+      return HttpResponse.json(
+        {
+          code: 'PRICE_CHANGED',
+          message:
+            'O preço ou a disponibilidade de um item mudou. Revise o carrinho e confirme novamente.',
+          itemIds: staleItems.map((item) => item.id),
+        },
+        { status: 409 },
+      )
+    }
+
     const newOrder: MockOrder = {
       id: crypto.randomUUID(),
       userId: user.id,
@@ -376,6 +461,7 @@ export const handlers = [
       total: body.total,
       createdAt: new Date().toISOString(),
       version: 1,
+      requestFingerprint,
       ...(idempotencyKey ? { idempotencyKey } : {}),
     }
 
@@ -503,6 +589,26 @@ export const handlers = [
     if (simulation === 'rejected') {
       console.warn('[MSW] Pagamento recusado no modo de simulação.')
 
+      // Pedido recusado é terminal: o próximo envio precisa de uma nova
+      // chave de idempotência (o cliente descarta a chave ao receber 402).
+      const rejectedOrder: MockOrder = {
+        ...order,
+        status: 'rejected',
+        version: (order.version ?? 1) + 1,
+      }
+
+      orders[orderIndex] = rejectedOrder
+      writeStorage('greenmint-orders', orders)
+
+      emitRealtime('order.updated', {
+        eventId: crypto.randomUUID(),
+        resource: 'order',
+        resourceId: rejectedOrder.id,
+        version: rejectedOrder.version,
+        userId: rejectedOrder.userId,
+        data: rejectedOrder,
+      })
+
       return HttpResponse.json(
         {
           orderId: order.id,
@@ -601,7 +707,7 @@ export const handlers = [
       id: crypto.randomUUID(),
       name: body.name,
       email: body.email.toLowerCase(),
-      password: body.password,
+      passwordHash: await hashPassword(body.password),
     }
 
     users.push(newUser)
@@ -643,15 +749,34 @@ export const handlers = [
 
     const user = users.find(
       (item) =>
-        item.email.toLowerCase() === body.email?.toLowerCase() &&
-        item.password === body.password,
+        item.email.toLowerCase() === body.email?.toLowerCase(),
     )
 
-    if (!user) {
+    const passwordHash =
+      typeof body.password === 'string' && body.password
+        ? await hashPassword(body.password)
+        : null
+
+    const hasValidPassword =
+      user !== undefined &&
+      passwordHash !== null &&
+      (user.passwordHash === passwordHash ||
+        // Usuário salvo antes da correção, com senha em texto puro.
+        (user.passwordHash === undefined &&
+          user.password === body.password))
+
+    if (!user || !hasValidPassword || !passwordHash) {
       return HttpResponse.json(
         { message: 'E-mail ou senha inválidos.' },
         { status: 401 },
       )
+    }
+
+    // Migra o usuário legado: guarda o hash e descarta a senha pura.
+    if (user.passwordHash === undefined) {
+      user.passwordHash = passwordHash
+      delete user.password
+      writeStorage('greenmint-users', users)
     }
 
     const token = crypto.randomUUID()

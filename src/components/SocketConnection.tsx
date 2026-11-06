@@ -72,12 +72,20 @@ function SocketConnection() {
         return
       }
 
+      // Catálogo e carrinho (o CartProvider observa a mesma chave ['nfts']).
       queryClient.setQueryData<NFT[]>(['nfts'], (current) =>
         current?.map((nft) =>
           nft.id === event.resourceId
             ? { ...nft, ...event.data }
             : nft,
         ),
+      )
+
+      // Página de detalhe do NFT.
+      queryClient.setQueryData<NFT>(
+        ['nfts', event.resourceId],
+        (current) =>
+          current ? { ...current, ...event.data } : current,
       )
 
       console.log('[Socket.IO] NFT atualizado:', event.resourceId)

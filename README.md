@@ -153,6 +153,49 @@ http://localhost:5173
 
 O MSW é utilizado para simular as operações da API e os serviços necessários à aplicação, sem depender de um backend externo.
 
+### Variáveis de ambiente
+
+| Variável | Valor | Descrição |
+|---|---|---|
+| `VITE_ENABLE_MOCKS` | `true` | Ativa o MSW no build de produção e na versão publicada. Em desenvolvimento (`npm run dev`) os mocks são sempre ativados. |
+
+O arquivo `.env.example` traz o valor para uso local. Na Vercel, a variável deve estar definida nas configurações do projeto.
+
+### Credenciais fictícias
+
+| Usuário | E-mail | Senha |
+|---|---|---|
+| Demo | `demo@greenmint.com` | `123456` |
+
+Novas contas podem ser criadas na tela de cadastro. As senhas são guardadas apenas como hash SHA-256 no armazenamento local do navegador (veja as limitações em [ARCHITECTURE.md](ARCHITECTURE.md)).
+
+### Cenários e reset dos dados simulados
+
+Os dados simulados (usuários, sessões, pedidos e NFTs) ficam no `localStorage`, em chaves com o prefixo `greenmint-`.
+
+- **Pagamento aprovado (padrão):** `localStorage.setItem('greenmint-payment-simulation', 'approved')`
+- **Pagamento recusado:** `localStorage.setItem('greenmint-payment-simulation', 'rejected')`. O pedido fica como `rejected` (estado terminal) e a nova tentativa usa uma nova chave de idempotência.
+- **Pagamento pendente:** `localStorage.setItem('greenmint-payment-simulation', 'pending')`. O pedido permanece `pending`, e reenviar a compra recupera o mesmo pedido.
+- **Alterar preço em tempo real:** envie `PATCH /api/nfts/:id` com `{ "price": 2.5 }` pelo console do navegador. O handler emite `nft.updated` pelo Socket.IO simulado, e o carrinho e o checkout exibem o aviso.
+
+```js
+// Exemplo: mudar o preço de um NFT com o carrinho aberto
+fetch('/api/nfts/emerald-ape-042', {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ price: 2.5 }),
+})
+```
+
+Para restaurar o cenário inicial, remova todas as chaves do projeto e recarregue a página:
+
+```js
+Object.keys(localStorage)
+  .filter((key) => key.startsWith('greenmint-'))
+  .forEach((key) => localStorage.removeItem(key))
+location.reload()
+```
+
 ## Testes e validações
 
 ### Análise estática
@@ -193,9 +236,13 @@ Os testes automatizados cobrem:
 - Autenticação com credenciais inválidas.
 - Checkout com pagamento aprovado.
 - Checkout com pagamento recusado e nova tentativa.
+- Alteração de preço via Socket.IO durante o checkout: aviso, resumo atualizado e compra bloqueada até a revisão.
+- Idempotência de pedidos: mesma chave recupera o mesmo pedido, e conteúdo diferente retorna `409`.
+- Criação de pedido com preço desatualizado rejeitada com `409`.
+- Cadastro sem armazenar a senha em texto puro e login com o novo usuário.
 - Comportamento responsivo em 375 px, 768 px, 1024 px e 1440 px.
 
-**Última validação executada: 8 de 8 testes aprovados.**
+**Última validação executada: 13 de 13 testes aprovados.**
 
 ## Cenários de demonstração
 
@@ -253,6 +300,35 @@ Os relatórios HTML foram gerados localmente na pasta `reports/`, utilizada para
 - Configuração do arquivo `robots.txt`.
 
 As auditorias foram realizadas nas páginas inicial (`/`) e de detalhes de NFT (`/nft/emerald-ape-042`), utilizando a versão publicada no Vercel.
+
+## Escopo implementado e limitações
+
+O desafio pede um escopo maior do que esta entrega cobre. Para evitar ambiguidade, segue o que está e o que não está implementado.
+
+**Implementado**
+
+- Catálogo com busca, filtros combinados, ordenação e paginação sincronizados com a URL.
+- Detalhe do NFT, carrinho com quantidades, cupom e persistência por usuário e visitante.
+- Cadastro, login, recuperação de sessão, proteção de rotas e logout.
+- Checkout com pedido idempotente, pagamento simulado (aprovado, recusado e pendente) e confirmação.
+- Revalidação de preço no servidor simulado antes de criar o pedido (`409 PRICE_CHANGED`).
+- Tempo real com Socket.IO sobre MSW: `nft.updated` e `order.updated`, com proteção contra eventos duplicados e antigos, identificação da sessão e reconciliação após reconexão.
+- Aviso de alteração de preço no carrinho e no checkout, com a compra bloqueada até o usuário revisar.
+- Testes E2E com Playwright e auditoria Lighthouse manual.
+
+**Não implementado nesta entrega**
+
+- Favoritos.
+- Cadastro e edição de carteiras, e seleção de carteira e rede no checkout.
+- Edição de perfil, avatar e alteração de senha.
+- Endpoint de cotação com taxa de rede. Os cálculos são feitos no cliente com `number` (o enunciado pede strings decimais).
+- Busca, filtros, ordenação e paginação processados pela API: a listagem `GET /api/nfts` devolve todos os NFTs e a filtragem acontece no cliente.
+- Atualização otimista com rollback.
+- Expiração de sessão e cenários configuráveis de latência, timeout e falhas HTTP.
+- Disponibilidade por edição (só o preço é revalidado).
+- Regressão visual, testes de reconexão do socket, configuração e scripts do Lighthouse versionados.
+
+Os detalhes técnicos, as decisões e as limitações estão em [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Observações
 
