@@ -182,6 +182,48 @@ A interface foi desenvolvida e validada em diferentes larguras de tela:
 - **1024 px** — notebook pequeno.
 - **1440 px** — desktop, seguindo a referência do Figma.
 
+## Auditoria de performance e qualidade
+
+As páginas principais do marketplace foram avaliadas com Lighthouse na versão publicada da aplicação, considerando os modos desktop e mobile.
+
+**Ambiente avaliado:** [GreenMint Marketplace](https://greenmint-marketplace.vercel.app/)
+
+### Resultados
+
+| Página | Dispositivo | Performance | Acessibilidade | Boas práticas | SEO |
+|---|---|---:|---:|---:|---:|
+| Home | Desktop | 99 | 96 | 100 | 100 |
+| Home | Mobile | 96 | 96 | 100 | 100 |
+| Detalhes do NFT | Desktop | 100 | 100 | 100 | 100 |
+| Detalhes do NFT | Mobile | 98 | 100 | 100 | 100 |
+
+### Layout Shift (CLS)
+
+Valores registrados nas auditorias:
+
+- Home — Desktop: `0.054`
+- Detalhes do NFT — Mobile: `0`
+
+Ambos ficaram abaixo do limite recomendado de `0.1`, indicando boa estabilidade visual nas condições avaliadas.
+
+### Relatórios Lighthouse
+
+Os relatórios HTML foram gerados localmente na pasta `reports/`:
+
+- `home-desktop-after.html`
+- `home-mobile.html`
+- `nft-detail-desktop.html`
+- `nft-detail-mobile.html`
+
+### Melhorias realizadas
+
+- Inclusão de dimensões explícitas (`width` e `height`) nas imagens para reduzir deslocamentos de layout.
+- Otimização da estabilidade visual da página inicial e das imagens de conteúdo.
+- Inclusão de metadados para SEO.
+- Configuração do arquivo `robots.txt`.
+
+As auditorias foram realizadas nas páginas inicial (`/`) e de detalhes de NFT (`/nft/emerald-ape-042`), utilizando a versão publicada no Vercel.
+
 ## Observações
 
 Este projeto utiliza dados e serviços simulados para demonstrar a integração entre interface, gerenciamento de estado, API REST e comunicação em tempo real.
@@ -192,4 +234,4 @@ Não há integração com uma blockchain ou processamento real de pagamentos. As
 
 Desenvolvido como desafio técnico para o processo seletivo da **Jungle Gaming**.
 
-**GitHub:** [llima598](https://github.com/llima598)
+**GitHub:** [llima598](https://github.com/llima598)</Writing
