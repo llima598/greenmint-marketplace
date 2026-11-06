@@ -1,3 +1,4 @@
+
 const articles = [
   {
     id: 1,
@@ -50,6 +51,8 @@ function Journal() {
             <img
               src={article.image}
               alt={article.alt}
+              width={268}
+              height={369}
               loading="lazy"
               decoding="async"
               className="block h-auto w-full object-contain"

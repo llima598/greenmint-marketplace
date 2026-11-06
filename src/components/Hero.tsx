@@ -1,3 +1,4 @@
+
 import { Link } from '@tanstack/react-router'
 
 function Hero() {
@@ -24,7 +25,7 @@ function Hero() {
 
         <p className="mt-6 max-w-md text-sm leading-7 text-white/60 sm:text-base">
           Descubra, colecione e negocie NFTs exclusivos.
-          Entre em um universo onde a criatividade não tem limites.
+          Entre em um universo onde a criatividade nao tem limites.
         </p>
 
         <Link
@@ -40,7 +41,9 @@ function Hero() {
       <div className="flex min-h-[280px] items-center justify-center sm:min-h-[350px] lg:min-h-[400px]">
         <img
           src="/images/hero-nft.png"
-          alt="NFT de macaco com óculos e jaqueta verde"
+          alt="NFT de macaco com oculos e jaqueta verde"
+          width={550}
+          height={450}
           className="h-auto max-h-[450px] w-full max-w-[550px] object-contain"
           fetchPriority="high"
         />
