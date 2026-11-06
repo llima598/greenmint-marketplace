@@ -83,6 +83,34 @@ const initialUsers: MockUser[] = [
 ]
 
 export const handlers = [
+      // Validar cupom de desconto
+  http.post('/api/coupons/validate', async ({ request }) => {
+    const body = (await request.json()) as {
+      code?: string
+    }
+
+    const code = body.code?.trim().toUpperCase()
+
+    if (!code) {
+      return HttpResponse.json(
+        { message: 'Informe um código de cupom.' },
+        { status: 400 },
+      )
+    }
+
+    if (code !== 'GREENMINT10') {
+      return HttpResponse.json(
+        { message: 'Cupom inválido ou expirado.' },
+        { status: 400 },
+      )
+    }
+
+    return HttpResponse.json({
+      code: 'GREENMINT10',
+      discountPercentage: 10,
+      message: 'Cupom aplicado com sucesso!',
+    })
+  }),
   // Buscar todos os NFTs
   http.get('/api/nfts', () => {
     return HttpResponse.json(mockNfts)

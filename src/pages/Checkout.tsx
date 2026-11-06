@@ -16,6 +16,7 @@ interface OrderResponse {
       id: string
       name: string
       price: number | null
+      quantity: number
     }[]
     total: number
   }
@@ -42,7 +43,7 @@ interface CheckoutAttempt {
 }
 
 function Checkout() {
-  const { items, clearCart } = useCart()
+  const { items, coupon, clearCart } = useCart()
   const { user, token, isLoading } = useAuth()
   const navigate = useNavigate()
 
@@ -55,8 +56,20 @@ function Checkout() {
     }
   }, [isLoading, user, navigate])
 
-  const total = items.reduce((sum, item) => {
-    return sum + (item.price ?? 0)
+  const subtotal = items.reduce((sum, item) => {
+    return sum + (item.price ?? 0) * item.quantity
+  }, 0)
+
+  const discount = coupon
+    ? Number(
+        ((subtotal * coupon.discountPercentage) / 100).toFixed(2),
+      )
+    : 0
+
+  const total = Number((subtotal - discount).toFixed(2))
+
+  const totalItems = items.reduce((sum, item) => {
+    return sum + item.quantity
   }, 0)
 
   const checkoutMutation = useMutation({
@@ -65,14 +78,22 @@ function Checkout() {
         throw new Error('Usuário não autenticado.')
       }
 
-      const cartFingerprint = JSON.stringify(
-        items
+      const cartFingerprint = JSON.stringify({
+        items: items
           .map((item) => ({
             id: item.id,
             price: item.price,
+            quantity: item.quantity,
           }))
           .sort((a, b) => a.id.localeCompare(b.id)),
-      )
+        coupon: coupon
+          ? {
+              code: coupon.code,
+              discountPercentage: coupon.discountPercentage,
+            }
+          : null,
+        total,
+      })
 
       const storageKey = `greenmint-checkout-${user.id}`
 
@@ -111,7 +132,16 @@ function Checkout() {
             id: item.id,
             name: item.name,
             price: item.price,
+            quantity: item.quantity,
           })),
+          subtotal,
+          discount,
+          coupon: coupon
+            ? {
+                code: coupon.code,
+                discountPercentage: coupon.discountPercentage,
+              }
+            : null,
           total,
         },
         {
@@ -123,12 +153,13 @@ function Checkout() {
       )
 
       const createdOrder = orderResponse.data
+      const finalTotal = createdOrder.order.total
 
       const paymentResponse = await api.post<PaymentResponse>(
         '/payments',
         {
           orderId: createdOrder.id,
-          total,
+          total: finalTotal,
           paymentMethod: 'ETH',
         },
         {
@@ -290,13 +321,22 @@ function Checkout() {
                   className="h-20 w-20 rounded-xl bg-[#211713] object-contain p-2"
                 />
 
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <h3 className="font-semibold">
                     {item.name}
                   </h3>
 
-                  <p className="mt-2 text-sm text-[#D9A441]">
+                  <p className="mt-2 text-sm text-white/50">
+                    {item.quantity} unidade(s) ×{' '}
                     {item.price?.toFixed(2)} ETH
+                  </p>
+
+                  <p className="mt-1 font-semibold text-[#D9A441]">
+                    Subtotal:{' '}
+                    {(
+                      (item.price ?? 0) * item.quantity
+                    ).toFixed(2)}{' '}
+                    ETH
                   </p>
                 </div>
               </article>
@@ -310,18 +350,32 @@ function Checkout() {
           </h2>
 
           <div className="mt-6 flex justify-between text-sm text-white/60">
-            <span>Quantidade de NFTs</span>
+            <span>Tipos de NFT</span>
             <span>{items.length}</span>
           </div>
 
           <div className="mt-4 flex justify-between text-sm text-white/60">
-            <span>Subtotal</span>
-            <span>{total.toFixed(2)} ETH</span>
+            <span>Quantidade total</span>
+            <span>{totalItems}</span>
           </div>
 
           <div className="mt-4 flex justify-between text-sm text-white/60">
-            <span>Desconto</span>
-            <span>—</span>
+            <span>Subtotal</span>
+            <span>{subtotal.toFixed(2)} ETH</span>
+          </div>
+
+          <div className="mt-4 flex justify-between text-sm text-white/60">
+            <span>
+              Desconto
+              {coupon && (
+                <span className="ml-1 text-[#D9A441]">
+                  ({coupon.code})
+                </span>
+              )}
+            </span>
+            <span className="text-green-400">
+              {discount > 0 ? `-${discount.toFixed(2)} ETH` : '—'}
+            </span>
           </div>
 
           <div className="my-6 border-t border-white/10" />

@@ -2,11 +2,30 @@
 
 ## 1. Visão geral
 
-O GreenMint Marketplace é uma aplicação Front-end desenvolvida com React e TypeScript. Sua arquitetura foi organizada para separar responsabilidades e facilitar a manutenção, evolução e testes das funcionalidades.
+O GreenMint Marketplace é uma aplicação Front-end desenvolvida com React e TypeScript como desafio técnico para a Jungle Gaming.
 
-A aplicação utiliza serviços simulados com MSW para representar a comunicação com uma API REST e Socket.IO durante o desenvolvimento.
+A arquitetura separa responsabilidades entre interface, gerenciamento de estado, navegação, comunicação HTTP e atualizações em tempo real.
 
-## 2. Organização de pastas
+Os serviços de backend são simulados com Mock Service Worker (MSW), permitindo executar os principais fluxos da aplicação sem depender de uma API externa.
+
+## 2. Tecnologias e responsabilidades
+
+| Tecnologia | Responsabilidade |
+|---|---|
+| React | Construção da interface e composição de componentes |
+| TypeScript | Tipagem estática |
+| Vite | Desenvolvimento e build |
+| Tailwind CSS | Estilização e responsividade |
+| TanStack Router | Navegação e gerenciamento de rotas |
+| TanStack Query | Requisições, cache e sincronização de dados |
+| Axios | Comunicação HTTP |
+| React Context | Estado compartilhado de autenticação e carrinho |
+| MSW | Simulação dos serviços REST |
+| Socket.IO Client | Comunicação em tempo real |
+| Playwright | Testes automatizados End-to-End |
+| Oxlint | Análise estática do código |
+
+## 3. Organização de pastas
 
 ```text
 src/
@@ -51,25 +70,28 @@ src/
 │   └── socket.ts
 │
 ├── App.tsx
+├── index.css
 ├── main.tsx
-├── router.tsx
-└── index.css
+└── router.tsx
 
 e2e/
 └── e2e/
     ├── auth.spec.ts
-    └── checkout.spec.ts
+    ├── checkout.spec.ts
+    └── responsive.spec.ts
 ```
 
-## 3. Camadas e responsabilidades
+## 4. Camadas e responsabilidades
 
 ### Components
 
-Contém os componentes reutilizáveis da interface, como cabeçalho, rodapé, listagem de produtos e componentes de integração com atualizações em tempo real.
+Contém componentes reutilizáveis da interface, como cabeçalho, rodapé, listagem de produtos e integração com atualizações em tempo real.
+
+O componente `SocketConnection` centraliza a inscrição nos eventos recebidos pelo Socket.IO e atualiza o cache do TanStack Query.
 
 ### Pages
 
-Contém as páginas principais da aplicação:
+Contém as páginas e os fluxos principais da aplicação:
 
 - Marketplace.
 - Detalhes do NFT.
@@ -81,99 +103,177 @@ Contém as páginas principais da aplicação:
 
 ### Context
 
-Centraliza estados compartilhados entre diferentes partes da aplicação.
+Centraliza os estados compartilhados da aplicação.
 
 **AuthContext**
+
 - Gerencia o usuário autenticado.
 - Controla login, cadastro e logout.
-- Mantém o token de autenticação no armazenamento local.
-- Disponibiliza o estado de autenticação por meio do hook `useAuth`.
+- Mantém o token de autenticação no LocalStorage.
+- Recupera a sessão por meio da API simulada.
+- Disponibiliza os dados e operações de autenticação pelo hook `useAuth`.
 
 **CartContext**
-- Gerencia os NFTs adicionados ao carrinho.
-- Permite adicionar, remover e limpar itens.
-- Persiste os itens no armazenamento local.
-- Separa os dados do carrinho por usuário.
-- Disponibiliza as operações por meio do hook `useCart`.
+
+- Gerencia os itens adicionados ao carrinho.
+- Permite adicionar, remover e atualizar quantidades.
+- Gerencia cupons de desconto.
+- Persiste os dados localmente.
+- Mantém os dados do carrinho separados por usuário e para visitantes.
+- Disponibiliza as operações pelo hook `useCart`.
 
 ### Services
 
-Responsável pela comunicação e integração com serviços externos ou simulados.
+Responsável pela comunicação com os serviços HTTP e de tempo real.
 
-- `api.ts`: configuração e comunicação HTTP com Axios.
-- `socket.ts`: configuração da conexão Socket.IO.
-- `realtime.ts`: tratamento e controle dos eventos recebidos em tempo real.
+- `api.ts`: configuração da instância Axios.
+- `socket.ts`: configuração da conexão Socket.IO Client.
+- `realtime.ts`: estruturas e validação de eventos recebidos em tempo real.
 
 ### Data
 
-Contém os dados e tipos relacionados aos NFTs utilizados pela aplicação.
+Contém os dados iniciais e os tipos relacionados aos NFTs utilizados pela aplicação.
 
 ### Mocks
 
 Contém a infraestrutura de simulação dos serviços.
 
 - `browser.ts`: inicialização do MSW no navegador.
-- `handlers.ts`: interceptação e respostas das operações REST.
-- `socket.ts`: simulação dos eventos de comunicação em tempo real.
+- `handlers.ts`: interceptação de requisições REST e respostas simuladas.
+- `socket.ts`: simulação das conexões e emissão de eventos em tempo real.
 
-## 4. Gerenciamento de dados e estado
+## 5. Gerenciamento de dados e estado
 
-A aplicação utiliza diferentes mecanismos conforme a responsabilidade de cada informação.
+A aplicação utiliza mecanismos diferentes conforme a responsabilidade de cada informação.
 
-| Tecnologia | Responsabilidade |
+| Recurso | Utilização |
 |---|---|
 | React Context | Estado global de autenticação e carrinho |
-| TanStack Query | Requisições, cache e gerenciamento de estados de carregamento e erro |
-| TanStack Router | Navegação e parâmetros de rotas |
-| LocalStorage | Persistência local de sessão, carrinho e tentativa de checkout |
+| TanStack Query | Requisições, cache e estados de carregamento e erro |
+| TanStack Router | Navegação, rotas e parâmetros |
 | Axios | Comunicação HTTP |
+| LocalStorage | Persistência de sessão, carrinho, cupons e tentativas de checkout |
+| MSW | Simulação dos serviços de backend |
 
-Os filtros, a busca, a ordenação e a paginação do marketplace utilizam parâmetros da URL, permitindo manter o estado da navegação.
+A busca, os filtros, a ordenação e a paginação do marketplace utilizam parâmetros da URL, permitindo compartilhar e recuperar o estado da navegação.
 
-## 5. Fluxo de autenticação
+## 6. Fluxo de autenticação
 
 1. O usuário acessa a tela de login ou cadastro.
 2. A aplicação envia os dados para o serviço de autenticação.
-3. O serviço simulado valida as credenciais.
-4. Em caso de sucesso, o token e os dados do usuário são armazenados.
-5. O contexto de autenticação atualiza o estado da aplicação.
-6. As rotas protegidas verificam a existência de uma sessão válida.
+3. O MSW intercepta a requisição e executa a validação simulada.
+4. Em caso de sucesso, o token e os dados do usuário são armazenados no estado da aplicação.
+5. O token é persistido no LocalStorage.
+6. O contexto de autenticação disponibiliza a sessão para os componentes.
+7. Nas próximas inicializações, a aplicação consulta o endpoint de recuperação de sessão.
+8. As rotas protegidas verificam a autenticação antes de permitir o acesso.
 
-O logout limpa os dados locais de autenticação.
+O logout remove os dados locais da sessão.
 
-## 6. Fluxo de compra
+## 7. Carrinho e cupons
 
-O processo de compra foi estruturado para tratar falhas e permitir novas tentativas.
+O carrinho é gerenciado pelo `CartContext` e possui persistência local.
 
-1. O usuário seleciona um NFT.
-2. O produto é adicionado ao carrinho.
-3. O carrinho mantém os itens persistidos localmente.
-4. O usuário acessa o checkout.
-5. A aplicação cria ou recupera uma chave de idempotência para a tentativa de compra.
+Os dados são separados de acordo com o usuário autenticado. Visitantes também podem manter itens no carrinho por meio de uma chave própria no LocalStorage.
+
+As operações disponíveis incluem:
+
+- Adicionar NFTs.
+- Remover NFTs.
+- Atualizar quantidades.
+- Limpar o carrinho.
+- Aplicar e remover cupons de desconto.
+
+A validação de cupons é realizada por meio de um endpoint REST simulado.
+
+O cupom de demonstração `GREENMINT10` concede 10% de desconto. O carrinho calcula subtotal, desconto e total, e os valores são utilizados na etapa de checkout.
+
+## 8. Fluxo de compra
+
+O processo de compra utiliza operações simuladas de criação de pedido e pagamento.
+
+1. O usuário adiciona NFTs ao carrinho.
+2. O carrinho mantém os itens e o cupom aplicado.
+3. O usuário acessa o checkout.
+4. A aplicação calcula os valores do pedido.
+5. Uma chave de idempotência é criada ou recuperada para a tentativa de compra.
 6. A aplicação envia a solicitação de criação do pedido.
-7. O serviço de pagamento simulado processa a transação.
-8. Se aprovado, o pedido é confirmado e o carrinho é limpo.
-9. Se recusado ou pendente, o usuário recebe o retorno correspondente e os itens permanecem no carrinho.
+7. O serviço simulado registra ou recupera o pedido correspondente.
+8. A aplicação solicita o processamento do pagamento.
+9. Se o pagamento for aprovado, a compra é confirmada e o carrinho é limpo.
+10. Se o pagamento não for aprovado, o fluxo apresenta o retorno correspondente e preserva os itens para uma nova tentativa.
 
 ### Idempotência
 
 A aplicação utiliza uma chave de idempotência associada ao usuário e à composição do carrinho.
 
-Em uma nova tentativa da mesma compra, a chave é reutilizada. O serviço simulado verifica se já existe um pedido correspondente, evitando a criação de pedidos duplicados nesse cenário.
+A chave é persistida localmente e reutilizada em novas tentativas da mesma compra, evitando a criação de pedidos duplicados quando a solicitação é repetida com a mesma chave.
 
-## 7. Comunicação em tempo real
+## 9. Comunicação em tempo real
 
-A aplicação utiliza Socket.IO Client para receber atualizações em tempo real.
+A aplicação utiliza Socket.IO Client para receber atualizações simuladas pelo MSW.
 
-Os eventos implementados incluem:
+Os eventos implementados são:
 
-- `nft.updated`: atualização relacionada a NFTs.
-- `order.updated`: atualização relacionada a pedidos.
+- `nft.updated`: comunica alterações nos dados de NFTs.
+- `order.updated`: comunica alterações nos pedidos.
 
-O tratamento dos eventos considera identificadores e versões para reduzir o processamento duplicado ou desatualizado.
+O componente `SocketConnection` recebe os eventos e atualiza o cache do TanStack Query.
 
-A conexão também contempla mecanismos de reconexão.
+O tratamento considera identificadores de eventos, recursos e versões para evitar o processamento de eventos duplicados ou desatualizados.
 
-## 8. Simulação de serviços
+A identificação da sessão permite associar conexões ao usuário autenticado e restringir eventos de pedidos ao usuário correspondente.
 
-O MSW intercepta as requisições HTTP durante o desenvolvimento e fornece
+A conexão também contempla reconexão automática e atualização dos dados após o restabelecimento da conexão.
+
+## 10. Simulação de serviços
+
+O Mock Service Worker intercepta as requisições HTTP e fornece respostas para os fluxos da aplicação.
+
+Os handlers simulam operações como:
+
+- Consulta e atualização de NFTs.
+- Cadastro, login e recuperação de sessão.
+- Consulta e criação de pedidos.
+- Processamento de pagamentos.
+- Validação de cupons.
+
+Os dados simulados utilizam o LocalStorage para manter informações entre atualizações da página.
+
+A comunicação em tempo real é simulada por meio da integração entre MSW, `@mswjs/socket.io-binding` e Socket.IO Client.
+
+Essa abordagem permite testar a integração entre as camadas da aplicação sem depender de um backend externo.
+
+## 11. Testes e qualidade
+
+O projeto utiliza Playwright para testes automatizados End-to-End.
+
+Os cenários automatizados cobrem:
+
+- Fluxos de autenticação.
+- Checkout com pagamento aprovado e recusado.
+- Comportamento responsivo em diferentes resoluções.
+
+As resoluções verificadas incluem 375 px, 768 px, 1024 px e 1440 px.
+
+O Oxlint é utilizado para análise estática do código, enquanto o processo de build executa a verificação de tipos do TypeScript antes de gerar os arquivos de produção.
+
+Comandos disponíveis:
+
+```bash
+npm run lint
+npm run build
+npm run test:e2e
+```
+
+## 12. Limitações e escopo da simulação
+
+O GreenMint Marketplace é uma aplicação Front-end demonstrativa.
+
+- Não existe integração com uma blockchain real.
+- Os pagamentos em ETH são simulados.
+- Os serviços REST e eventos Socket.IO são simulados pelo MSW.
+- Os dados persistidos dependem do armazenamento local do navegador.
+- A autenticação é demonstrativa e não substitui um sistema real de autenticação em produção.
+
+A arquitetura foi organizada para demonstrar separação de responsabilidades, gerenciamento de estado, comunicação HTTP, atualização em tempo real e testes automatizados.
