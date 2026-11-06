@@ -6,6 +6,19 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import type { NFT, NFTCategory, NFTNetwork } from '../data/nfts'
 
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Checkbox } from './ui/checkbox'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from './ui/select'
+import { Badge } from './ui/badge'
+import { Skeleton } from './ui/skeleton'
+
 const categories: NFTCategory[] = [
     'Arte digital',
     'Fotografia',
@@ -65,6 +78,12 @@ function Products() {
     const selectedCategories = category ? category.split(',') : []
     const selectedNetworks = network ? network.split(',') : []
 
+    const activeFiltersCount =
+        selectedCategories.length +
+        selectedNetworks.length +
+        (minPrice !== undefined ? 1 : 0) +
+        (maxPrice !== undefined ? 1 : 0)
+
     const {
         data: nfts,
         isLoading,
@@ -82,8 +101,6 @@ function Products() {
         },
     })
 
-    // Garante que os filtros sempre recebam um array.
-    // Isso evita erros caso o cache do React Query tenha dados inesperados.
     const nftList: NFT[] = Array.isArray(nfts) ? nfts : []
 
     const filteredNfts = nftList.filter((nft) => {
@@ -153,6 +170,7 @@ function Products() {
                 page: undefined,
             }),
             replace: true,
+            resetScroll: false,
         })
     }
 
@@ -164,6 +182,7 @@ function Products() {
                 page: undefined,
             }),
             replace: true,
+            resetScroll: false,
         })
     }
 
@@ -199,6 +218,7 @@ function Products() {
                 page: undefined,
             }),
             replace: true,
+            resetScroll: false,
         })
     }
 
@@ -211,6 +231,7 @@ function Products() {
                 page: undefined,
             }),
             replace: true,
+            resetScroll: false,
         })
     }
 
@@ -226,6 +247,7 @@ function Products() {
                 page: undefined,
             }),
             replace: true,
+            resetScroll: false,
         })
     }
 
@@ -241,6 +263,7 @@ function Products() {
                 page: undefined,
             }),
             replace: true,
+            resetScroll: false,
         })
     }
 
@@ -253,6 +276,7 @@ function Products() {
                 page: undefined,
             }),
             replace: true,
+            resetScroll: false,
         })
     }
 
@@ -263,6 +287,7 @@ function Products() {
                 page: newPage === 1 ? undefined : newPage,
             }),
             replace: true,
+            resetScroll: false,
         })
 
         window.scrollTo({
@@ -273,8 +298,26 @@ function Products() {
 
     if (isLoading) {
         return (
-            <section className="py-12 text-center text-white/60 sm:py-20">
-                Carregando NFTs...
+            <section className="py-12 sm:py-20">
+                <div className="mb-8">
+                    <Skeleton className="mb-3 h-4 w-28 bg-white/10" />
+                    <Skeleton className="h-9 w-48 bg-white/10" />
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-[310px_minmax(0,1fr)] lg:gap-10">
+                    <Skeleton className="hidden min-h-[785px] rounded-2xl bg-white/5 lg:block" />
+
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 xl:gap-8">
+                        {Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="overflow-hidden rounded-2xl border border-white/10"
+                            >
+                                <Skeleton className="aspect-square rounded-none bg-white/5" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </section>
         )
     }
@@ -302,35 +345,32 @@ function Products() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[310px_minmax(0,1fr)] lg:gap-10">
-                {/* Filtros e destaque */}
                 <aside className="flex min-w-0 flex-col gap-8">
-                    {/* Botão de filtros mobile */}
-                    <button
+                    <Button
                         type="button"
+                        variant="outline"
                         aria-expanded={filtersOpen}
                         aria-controls="marketplace-filters"
                         onClick={() => setFiltersOpen((previous) => !previous)}
-                        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-[#241612] px-5 py-4 text-left font-semibold transition hover:border-[#D9A441]/60 lg:hidden"
+                        className="flex h-auto w-full items-center justify-between rounded-xl border border-white/10 bg-[#241612] px-5 py-4 text-left font-semibold text-white transition hover:border-[#D9A441]/60 hover:bg-[#241612] hover:text-white lg:hidden"
                     >
                         <span>
                             Filtros
-                            {(selectedCategories.length > 0 ||
-                                selectedNetworks.length > 0 ||
-                                minPrice !== undefined ||
-                                maxPrice !== undefined) && (
-                                    <span className="ml-2 text-sm font-normal text-[#D9A441]">
-                                        (ativos)
-                                    </span>
-                                )}
+
+                            {activeFiltersCount > 0 && (
+                                <Badge
+                                    variant="outline"
+                                    className="ml-2 border-[#D9A441]/50 bg-transparent text-[#D9A441]"
+                                >
+                                    {activeFiltersCount} ativos
+                                </Badge>
+                            )}
                         </span>
 
-                        <span
-                            aria-hidden="true"
-                            className="text-[#D9A441]"
-                        >
+                        <span aria-hidden="true" className="text-[#D9A441]">
                             {filtersOpen ? '−' : '+'}
                         </span>
-                    </button>
+                    </Button>
 
                     <div
                         id="marketplace-filters"
@@ -348,11 +388,11 @@ function Products() {
                                         className="mb-3 flex cursor-pointer items-center justify-between gap-3 text-sm text-white/60 transition hover:text-white"
                                     >
                                         <span className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
+                                            <Checkbox
                                                 checked={selectedCategories.includes(name)}
-                                                onChange={() => handleCategoryChange(name)}
-                                                className="h-4 w-4 shrink-0 accent-[#D9A441] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9A441]"
+                                                onCheckedChange={() => handleCategoryChange(name)}
+                                                aria-label={`Filtrar por ${name}`}
+                                                className="border-white/30 bg-[#140D0A] data-checked:border-[#D9A441] data-checked:bg-[#D9A441] data-checked:text-[#140D0A]"
                                             />
 
                                             {name}
@@ -381,7 +421,7 @@ function Products() {
                                     >
                                         Mínimo (ETH)
 
-                                        <input
+                                        <Input
                                             id="min-price"
                                             name="minPrice"
                                             type="number"
@@ -389,7 +429,7 @@ function Products() {
                                             step="0.01"
                                             defaultValue={minPrice ?? ''}
                                             placeholder="Ex: 0.50"
-                                            className="mt-2 w-full rounded-lg border border-white/10 bg-[#140D0A] px-3 py-3 text-base text-white outline-none transition focus:border-[#D9A441] focus-visible:ring-2 focus-visible:ring-[#D9A441]/40"
+                                            className="mt-2 h-auto w-full rounded-lg border border-white/10 bg-[#140D0A] px-3 py-3 text-base text-white outline-none transition placeholder:text-white/40 focus-visible:border-[#D9A441] focus-visible:ring-2 focus-visible:ring-[#D9A441]/40"
                                         />
                                     </label>
 
@@ -399,7 +439,7 @@ function Products() {
                                     >
                                         Máximo (ETH)
 
-                                        <input
+                                        <Input
                                             id="max-price"
                                             name="maxPrice"
                                             type="number"
@@ -407,24 +447,26 @@ function Products() {
                                             step="0.01"
                                             defaultValue={maxPrice ?? ''}
                                             placeholder="Ex: 2.00"
-                                            className="mt-2 w-full rounded-lg border border-white/10 bg-[#140D0A] px-3 py-3 text-base text-white outline-none transition focus:border-[#D9A441] focus-visible:ring-2 focus-visible:ring-[#D9A441]/40"
+                                            className="mt-2 h-auto w-full rounded-lg border border-white/10 bg-[#140D0A] px-3 py-3 text-base text-white outline-none transition placeholder:text-white/40 focus-visible:border-[#D9A441] focus-visible:ring-2 focus-visible:ring-[#D9A441]/40"
                                         />
                                     </label>
 
-                                    <button
+                                    <Button
                                         type="submit"
-                                        className="mt-2 rounded-full border border-[#D9A441] px-5 py-3 text-sm text-[#D9A441] transition hover:bg-[#D9A441] hover:text-[#140D0A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9A441]"
+                                        variant="outline"
+                                        className="mt-2 h-auto rounded-full border-[#D9A441] bg-transparent px-5 py-3 text-sm text-[#D9A441] transition hover:bg-[#D9A441] hover:text-[#140D0A]"
                                     >
                                         Aplicar
-                                    </button>
+                                    </Button>
 
-                                    <button
+                                    <Button
                                         type="button"
+                                        variant="ghost"
                                         onClick={handleClearPriceFilter}
-                                        className="py-2 text-sm text-white/50 transition hover:text-white focus-visible:outline-2 focus-visible:outline-[#D9A441]"
+                                        className="h-auto py-2 text-sm text-white/50 transition hover:bg-transparent hover:text-white"
                                     >
                                         Limpar filtros de preço
-                                    </button>
+                                    </Button>
                                 </form>
                             </fieldset>
 
@@ -439,11 +481,11 @@ function Products() {
                                         className="mb-3 flex cursor-pointer items-center justify-between gap-3 text-sm text-white/60 transition hover:text-white"
                                     >
                                         <span className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
+                                            <Checkbox
                                                 checked={selectedNetworks.includes(name)}
-                                                onChange={() => handleNetworkChange(name)}
-                                                className="h-4 w-4 shrink-0 accent-[#D9A441] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9A441]"
+                                                onCheckedChange={() => handleNetworkChange(name)}
+                                                aria-label={`Filtrar pela rede ${name}`}
+                                                className="border-white/30 bg-[#140D0A] data-checked:border-[#D9A441] data-checked:bg-[#D9A441] data-checked:text-[#140D0A]"
                                             />
 
                                             {name}
@@ -456,61 +498,86 @@ function Products() {
                                 ))}
                             </fieldset>
 
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
                                 onClick={handleClearCategoryAndNetwork}
-                                className="mt-6 py-2 text-left text-sm text-white/50 transition hover:text-white focus-visible:outline-2 focus-visible:outline-[#D9A441]"
+                                className="mt-6 h-auto py-2 text-left text-sm text-white/50 transition hover:bg-transparent hover:text-white"
                             >
                                 Limpar coleções e redes
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
-                    {/* NFT em destaque: desktop */}
                     <div className="hidden lg:block">
                         <FeaturedNft />
                     </div>
                 </aside>
 
-                {/* Catálogo */}
                 <div className="min-w-0">
                     <div className="mb-6">
-                        <label
-                            htmlFor="nft-search"
-                            className="sr-only"
-                        >
+                        <label htmlFor="nft-search" className="sr-only">
                             Buscar NFT pelo nome
                         </label>
 
-                        <input
+                        <Input
                             id="nft-search"
                             type="search"
                             value={search}
                             onChange={(event) => handleSearch(event.target.value)}
                             placeholder="Buscar NFT pelo nome..."
-                            className="w-full rounded-xl border border-white/10 bg-[#241612] px-5 py-4 text-base text-white outline-none transition placeholder:text-white/40 focus:border-[#D9A441] focus-visible:ring-2 focus-visible:ring-[#D9A441]/30"
+                            className="h-auto w-full rounded-xl border border-white/10 bg-[#241612] px-5 py-4 text-base text-white outline-none transition placeholder:text-white/40 focus-visible:border-[#D9A441] focus-visible:ring-2 focus-visible:ring-[#D9A441]/30"
                         />
                     </div>
 
                     <div className="mb-6 flex flex-col gap-4 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
-                        <span>
-                            {sortedNfts.length} NFTs encontrados
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span>
+                                {sortedNfts.length} NFTs encontrados
+                            </span>
 
-                        <label className="flex flex-wrap items-center gap-2">
-                            Ordenar por:
+                            {activeFiltersCount > 0 && (
+                                <Badge
+                                    variant="outline"
+                                    className="border-[#D9A441]/40 bg-transparent text-[#D9A441]"
+                                >
+                                    {activeFiltersCount} filtros ativos
+                                </Badge>
+                            )}
+                        </div>
 
-                            <select
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span>Ordenar por:</span>
+
+                            <Select
                                 value={sort}
-                                onChange={(event) => handleSort(event.target.value)}
-                                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#241612] px-3 py-3 text-white outline-none transition focus:border-[#D9A441] focus-visible:ring-2 focus-visible:ring-[#D9A441]/30 sm:flex-none"
+                                onValueChange={(value) => {
+                                    if (value) handleSort(value)
+                                }}
                             >
-                                <option value="recent">Listados recentemente</option>
-                                <option value="price-asc">Menor preço</option>
-                                <option value="price-desc">Maior preço</option>
-                                <option value="name">Nome (A–Z)</option>
-                            </select>
-                        </label>
+                                <SelectTrigger className="h-auto min-h-11 min-w-0 flex-1 rounded-lg border border-white/10 bg-[#241612] px-3 py-3 text-white transition hover:bg-[#241612] sm:flex-none">
+                                    <SelectValue />
+                                </SelectTrigger>
+
+                                <SelectContent className="border border-white/10 bg-[#241612] text-white">
+                                    <SelectItem value="recent">
+                                        Listados recentemente
+                                    </SelectItem>
+
+                                    <SelectItem value="price-asc">
+                                        Menor preço
+                                    </SelectItem>
+
+                                    <SelectItem value="price-desc">
+                                        Maior preço
+                                    </SelectItem>
+
+                                    <SelectItem value="name">
+                                        Nome (A–Z)
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 xl:gap-8">
@@ -548,52 +615,54 @@ function Products() {
                         </div>
                     )}
 
-                    {/* Paginação */}
                     {totalPages > 1 && (
                         <nav
                             aria-label="Paginação dos NFTs"
                             className="mt-10 flex flex-wrap items-center justify-end gap-2"
                         >
-                            <button
+                            <Button
                                 type="button"
+                                variant="outline"
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={currentPage === 1}
                                 aria-label="Página anterior"
-                                className="flex h-10 min-w-10 items-center justify-center rounded-md border border-white/20 px-3 text-sm text-white transition hover:border-[#D9A441] disabled:cursor-not-allowed disabled:opacity-30"
+                                className="h-10 min-w-10 rounded-md border border-white/20 px-3 text-sm text-white transition hover:border-[#D9A441] hover:bg-transparent hover:text-white"
                             >
                                 ←
-                            </button>
+                            </Button>
 
-                            {Array.from(
-                                { length: totalPages },
-                                (_, index) => index + 1,
-                            ).map((pageNumber) => (
-                                <button
-                                    key={pageNumber}
-                                    type="button"
-                                    onClick={() => handlePageChange(pageNumber)}
-                                    aria-label={`Página ${pageNumber}`}
-                                    aria-current={
-                                        currentPage === pageNumber ? 'page' : undefined
-                                    }
-                                    className={`flex h-10 w-10 items-center justify-center rounded-md text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9A441] ${currentPage === pageNumber
-                                            ? 'bg-[#D9A441] font-bold text-[#140D0A]'
-                                            : 'border border-white/20 text-white hover:border-[#D9A441]'
+                            {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                                (pageNumber) => (
+                                    <Button
+                                        key={pageNumber}
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => handlePageChange(pageNumber)}
+                                        aria-label={`Página ${pageNumber}`}
+                                        aria-current={
+                                            currentPage === pageNumber ? 'page' : undefined
+                                        }
+                                        className={`h-10 w-10 rounded-md p-0 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9A441] ${
+                                            currentPage === pageNumber
+                                                ? 'border-[#D9A441] bg-[#D9A441] font-bold text-[#140D0A] hover:bg-[#D9A441] hover:text-[#140D0A]'
+                                                : 'border-white/20 text-white hover:border-[#D9A441] hover:bg-transparent hover:text-white'
                                         }`}
-                                >
-                                    {pageNumber}
-                                </button>
-                            ))}
+                                    >
+                                        {pageNumber}
+                                    </Button>
+                                ),
+                            )}
 
-                            <button
+                            <Button
                                 type="button"
+                                variant="outline"
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={currentPage === totalPages}
                                 aria-label="Próxima página"
-                                className="flex h-10 min-w-10 items-center justify-center rounded-md border border-white/20 px-3 text-sm text-white transition hover:border-[#D9A441] disabled:cursor-not-allowed disabled:opacity-30"
+                                className="h-10 min-w-10 rounded-md border border-white/20 px-3 text-sm text-white transition hover:border-[#D9A441] hover:bg-transparent hover:text-white"
                             >
                                 →
-                            </button>
+                            </Button>
                         </nav>
                     )}
 
@@ -601,7 +670,6 @@ function Products() {
                         Página {currentPage} de {totalPages}
                     </p>
 
-                    {/* NFT em destaque: mobile */}
                     <div className="mt-10 lg:hidden">
                         <FeaturedNft />
                     </div>

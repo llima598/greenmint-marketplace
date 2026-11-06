@@ -12,6 +12,8 @@ A aplicação permite explorar NFTs, pesquisar e filtrar produtos, visualizar de
 - **TypeScript** — tipagem estática.
 - **Vite** — ambiente de desenvolvimento e build.
 - **Tailwind CSS v4** — estilização responsiva.
+- **shadcn/ui** — biblioteca de componentes de interface, utilizando Base UI.
+- **Lucide React** — biblioteca de ícones.
 - **TanStack Router** — gerenciamento de rotas.
 - **TanStack Query** — gerenciamento de requisições e cache.
 - **Axios** — comunicação HTTP.
@@ -20,6 +22,21 @@ A aplicação permite explorar NFTs, pesquisar e filtrar produtos, visualizar de
 - **@mswjs/socket.io-binding** — integração da simulação de eventos Socket.IO com MSW.
 - **Playwright** — testes automatizados End-to-End.
 - **Oxlint** — análise estática e qualidade do código.
+
+## Interface e componentes
+
+A interface utiliza componentes do shadcn/ui para padronizar elementos visuais e facilitar a reutilização.
+
+Os componentes implementados incluem:
+
+- **Button** — botões de ações e navegação.
+- **Input** — campos de busca e filtros de preço.
+- **Checkbox** — seleção de categorias e redes blockchain.
+- **Select** — ordenação dos NFTs.
+- **Badge** — identificação visual da quantidade de filtros ativos.
+- **Skeleton** — estados de carregamento.
+
+Os componentes foram integrados à identidade visual do GreenMint, mantendo a paleta de cores e o padrão visual da aplicação.
 
 ## Funcionalidades
 
@@ -72,21 +89,25 @@ O projeto utiliza uma organização por responsabilidades, separando componentes
 
 ```text
 src/
-├── components/   # Componentes reutilizáveis
-├── context/      # Contextos e gerenciamento de estado
-├── data/         # Dados e tipos dos NFTs
-├── mocks/        # Handlers REST e simulação de eventos
-├── pages/        # Páginas da aplicação
-├── services/     # Configuração de API e Socket.IO
+├── components/
+│   ├── ui/           # Componentes reutilizáveis do shadcn/ui
+│   └── ...           # Demais componentes da aplicação
+├── context/          # Contextos e gerenciamento de estado
+├── data/             # Dados e tipos dos NFTs
+├── lib/              # Funções utilitárias
+├── mocks/            # Handlers REST e simulação de eventos
+├── pages/            # Páginas da aplicação
+├── services/         # Configuração de API e Socket.IO
 ├── App.tsx
 ├── main.tsx
 └── router.tsx
 
 e2e/
-└── e2e/          # Testes automatizados com Playwright
+└── ...                # Testes automatizados com Playwright
 
 public/
-└── images/       # Imagens utilizadas no marketplace
+├── images/            # Imagens utilizadas no marketplace
+└── robots.txt
 ```
 
 Para mais detalhes sobre as decisões técnicas e a comunicação entre as camadas, consulte [ARCHITECTURE.md](./ARCHITECTURE.md).
@@ -208,12 +229,7 @@ Ambos ficaram abaixo do limite recomendado de `0.1`, indicando boa estabilidade 
 
 ### Relatórios Lighthouse
 
-Os relatórios HTML foram gerados localmente na pasta `reports/`:
-
-- `home-desktop-after.html`
-- `home-mobile.html`
-- `nft-detail-desktop.html`
-- `nft-detail-mobile.html`
+Os relatórios HTML foram gerados localmente na pasta `reports/`, utilizada para armazenar os resultados das auditorias e excluída do versionamento pelo `.gitignore`.
 
 ### Melhorias realizadas
 
@@ -234,4 +250,4 @@ Não há integração com uma blockchain ou processamento real de pagamentos. As
 
 Desenvolvido como desafio técnico para o processo seletivo da **Jungle Gaming**.
 
-**GitHub:** [llima598](https://github.com/llima598)</Writing
+**GitHub:** [llima598](https://github.com/llima598)
