@@ -69,13 +69,22 @@ function Products() {
     isError,
   } = useQuery({
     queryKey: ['nfts'],
-    queryFn: async () => {
-      const response = await api.get<NFT[]>('/nfts')
-      return response.data
+    queryFn: async (): Promise<NFT[]> => {
+      const response = await api.get<unknown>('/nfts')
+
+      if (!Array.isArray(response.data)) {
+        throw new Error('A API retornou uma lista de NFTs inválida.')
+      }
+
+      return response.data as NFT[]
     },
   })
 
-  const filteredNfts = nfts?.filter((nft) => {
+  // Garante que os filtros sempre recebam um array.
+  // Isso evita erros caso o cache do React Query tenha dados inesperados.
+  const nftList: NFT[] = Array.isArray(nfts) ? nfts : []
+
+  const filteredNfts = nftList.filter((nft) => {
     const matchesSearch = nft.name
       .toLowerCase()
       .includes(search.trim().toLowerCase())
@@ -105,7 +114,7 @@ function Products() {
     )
   })
 
-  const sortedNfts = [...(filteredNfts ?? [])].sort((a, b) => {
+  const sortedNfts = [...filteredNfts].sort((a, b) => {
     switch (sort) {
       case 'price-asc':
         return (a.price ?? Infinity) - (b.price ?? Infinity)
@@ -348,7 +357,7 @@ function Products() {
                     </span>
 
                     <span>
-                      ({nfts?.filter((nft) => nft.category === name).length ?? 0})
+                      ({nftList.filter((nft) => nft.category === name).length})
                     </span>
                   </label>
                 ))}
@@ -439,7 +448,7 @@ function Products() {
                     </span>
 
                     <span>
-                      ({nfts?.filter((nft) => nft.network === name).length ?? 0})
+                      ({nftList.filter((nft) => nft.network === name).length})
                     </span>
                   </label>
                 ))}
