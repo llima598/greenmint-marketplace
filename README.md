@@ -116,7 +116,7 @@ Para mais detalhes sobre as decisões técnicas e a comunicação entre as camad
 
 ### Pré-requisitos
 
-- Node.js compatível com a versão do Vite utilizada.
+- **Node.js 20.19+ ou 22.12+**.
 - npm.
 
 ### Instalação
@@ -161,11 +161,17 @@ O MSW é utilizado para simular as operações da API e os serviços necessário
 npm run lint
 ```
 
+A execução atual do Oxlint apresentou **0 erros e 2 avisos** relacionados à regra `react/only-export-components` nos componentes de interface `button` e `badge`.
+
 ### Build de produção
 
 ```bash
 npm run build
 ```
+
+O comando executa a verificação de tipos do TypeScript e a compilação de produção pelo Vite.
+
+A última validação foi concluída com sucesso. O Vite apresentou um aviso sobre o tamanho do bundle JavaScript principal, sem impedir a geração da versão de produção.
 
 ### Testes End-to-End
 
@@ -181,7 +187,15 @@ Execute os testes:
 npm run test:e2e
 ```
 
-Os testes automatizados cobrem os fluxos de autenticação, checkout e comportamento responsivo em diferentes resoluções.
+Os testes automatizados cobrem:
+
+- Autenticação com credenciais válidas.
+- Autenticação com credenciais inválidas.
+- Checkout com pagamento aprovado.
+- Checkout com pagamento recusado e nova tentativa.
+- Comportamento responsivo em 375 px, 768 px, 1024 px e 1440 px.
+
+**Última validação executada: 8 de 8 testes aprovados.**
 
 ## Cenários de demonstração
 

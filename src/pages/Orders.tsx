@@ -21,6 +21,16 @@ interface Order {
   paidAt?: string
 }
 
+function isValidPrice(price: unknown): price is number {
+  return typeof price === 'number' && Number.isFinite(price)
+}
+
+function formatETH(price: unknown): string {
+  return isValidPrice(price)
+    ? `${price.toFixed(2)} ETH`
+    : 'Preço indisponível'
+}
+
 function Orders() {
   const { user, token, isLoading } = useAuth()
   const navigate = useNavigate()
@@ -156,9 +166,7 @@ function Orders() {
                       <span>{item.name}</span>
 
                       <span className="text-[#B7A99A]">
-                        {item.price != null
-                          ? `${item.price.toFixed(2)} ETH`
-                          : 'Preço indisponível'}
+                        {formatETH(item.price)}
                       </span>
                     </div>
                   ))}
@@ -169,7 +177,7 @@ function Orders() {
                 <span className="font-semibold">Total</span>
 
                 <span className="font-bold text-[#C6A66B]">
-                  {order.total.toFixed(2)} ETH
+                  {formatETH(order.total)}
                 </span>
               </div>
             </article>

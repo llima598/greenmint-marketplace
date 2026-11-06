@@ -17,6 +17,16 @@ interface Order {
   createdAt: string
 }
 
+function isValidPrice(price: unknown): price is number {
+  return typeof price === 'number' && Number.isFinite(price)
+}
+
+function formatETH(price: unknown): string {
+  return isValidPrice(price)
+    ? `${price.toFixed(2)} ETH`
+    : 'Preço indisponível'
+}
+
 function Profile() {
   const { user, token } = useAuth()
 
@@ -143,9 +153,7 @@ function Profile() {
                   </h3>
 
                   <p className="mt-2 text-sm text-[#B7A99A]">
-                    {nft.price != null
-                      ? `${nft.price.toFixed(2)} ETH`
-                      : 'Preço indisponível'}
+                    {formatETH(nft.price)}
                   </p>
 
                   <span className="mt-4 inline-block rounded-full bg-green-500/10 px-3 py-1 text-xs text-green-400">

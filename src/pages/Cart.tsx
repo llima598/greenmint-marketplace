@@ -26,7 +26,14 @@ function Cart() {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
 
   const subtotal = items.reduce((sum, item) => {
-    return sum + (item.price ?? 0) * item.quantity
+    const price = item.price
+
+    const validPrice =
+      typeof price === 'number' && Number.isFinite(price)
+        ? price
+        : 0
+
+    return sum + validPrice * item.quantity
   }, 0)
 
   const discount = coupon
@@ -152,8 +159,19 @@ function Cart() {
         <div className="grid gap-10 lg:grid-cols-[1fr_320px]">
           <div className="space-y-4">
             {items.map((item) => {
+              const price = item.price
+
+              const validPrice =
+                typeof price === 'number' &&
+                Number.isFinite(price)
+
               const itemSubtotal =
-                (item.price ?? 0) * item.quantity
+                (validPrice ? price : 0) * item.quantity
+
+              const formattedPrice =
+                validPrice && typeof price === 'number'
+                  ? `${price.toFixed(2)} ETH`
+                  : 'Preço indisponível'
 
               return (
                 <article
@@ -176,9 +194,7 @@ function Cart() {
                     </p>
 
                     <p className="font-bold text-[#D9A441]">
-                      {item.price !== null
-                        ? `${item.price.toFixed(2)} ETH`
-                        : 'Preço indisponível'}
+                      {formattedPrice}
                     </p>
                   </div>
 

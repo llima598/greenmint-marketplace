@@ -24,6 +24,12 @@ interface CartState {
   coupon: AppliedCoupon | null
 }
 
+function normalizePrice(price: unknown): number | null {
+  return typeof price === 'number' && Number.isFinite(price)
+    ? price
+    : null
+}
+
 function normalizeCart(items: unknown): CartItem[] {
   if (!Array.isArray(items)) {
     return []
@@ -43,6 +49,7 @@ function normalizeCart(items: unknown): CartItem[] {
 
       return {
         ...savedItem,
+        price: normalizePrice(savedItem.price),
         quantity:
           Number.isInteger(savedItem.quantity) &&
           savedItem.quantity! > 0
@@ -90,6 +97,7 @@ function readCoupon(storageKey: string): AppliedCoupon | null {
     if (
       typeof coupon.code !== 'string' ||
       typeof coupon.discountPercentage !== 'number' ||
+      !Number.isFinite(coupon.discountPercentage) ||
       coupon.discountPercentage <= 0 ||
       coupon.discountPercentage > 100
     ) {
@@ -164,6 +172,11 @@ export function CartProvider({
   }, [coupon, couponStorageKey, isLoading])
 
   function addToCart(nft: NFT) {
+    const normalizedNFT = {
+      ...nft,
+      price: normalizePrice(nft.price),
+    }
+
     setCartState((currentState) => {
       const currentItems =
         currentState.key === storageKey
@@ -176,16 +189,17 @@ export function CartProvider({
           : readCoupon(couponStorageKey)
 
       const existingItem = currentItems.find(
-        (item) => item.id === nft.id,
+        (item) => item.id === normalizedNFT.id,
       )
 
       if (existingItem) {
         return {
           key: storageKey,
           items: currentItems.map((item) =>
-            item.id === nft.id
+            item.id === normalizedNFT.id
               ? {
                   ...item,
+                  price: normalizedNFT.price,
                   quantity: item.quantity + 1,
                 }
               : item,
@@ -199,7 +213,7 @@ export function CartProvider({
         items: [
           ...currentItems,
           {
-            ...nft,
+            ...normalizedNFT,
             quantity: 1,
           },
         ],

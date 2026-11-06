@@ -71,6 +71,16 @@ function NftDetails() {
     return null
   }
 
+  const price = nft.price
+
+  const hasValidPrice =
+    typeof price === 'number' && Number.isFinite(price)
+
+  const formattedPrice =
+    typeof price === 'number' && Number.isFinite(price)
+      ? `${price.toFixed(2)} ETH`
+      : 'Preço não informado'
+
   const alreadyInCart = items.some(
     (item) => item.id === nft.id,
   )
@@ -115,13 +125,11 @@ function NftDetails() {
             <p className="text-sm text-white/50">Preço atual</p>
 
             <p className="mt-2 text-3xl font-bold text-[#D9A441]">
-              {nft.price !== null
-                ? `${nft.price.toFixed(2)} ETH`
-                : 'Preço não informado'}
+              {formattedPrice}
             </p>
           </div>
 
-          {nft.price === null ? (
+          {!hasValidPrice ? (
             <button
               disabled
               className="mt-8 w-full cursor-not-allowed rounded-full bg-[#D9A441] px-8 py-4 font-bold text-[#140D0A] opacity-40"

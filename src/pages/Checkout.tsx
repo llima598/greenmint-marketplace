@@ -42,6 +42,16 @@ interface CheckoutAttempt {
   key: string
 }
 
+function isValidPrice(price: unknown): price is number {
+  return typeof price === 'number' && Number.isFinite(price)
+}
+
+function formatETH(price: unknown): string {
+  return isValidPrice(price)
+    ? `${price.toFixed(2)} ETH`
+    : 'Preço indisponível'
+}
+
 function Checkout() {
   const { items, coupon, clearCart } = useCart()
   const { user, token, isLoading } = useAuth()
@@ -56,8 +66,14 @@ function Checkout() {
     }
   }, [isLoading, user, navigate])
 
+  const hasValidPrices = items.every((item) =>
+    isValidPrice(item.price),
+  )
+
   const subtotal = items.reduce((sum, item) => {
-    return sum + (item.price ?? 0) * item.quantity
+    const price = isValidPrice(item.price) ? item.price : 0
+
+    return sum + price * item.quantity
   }, 0)
 
   const discount = coupon
@@ -76,6 +92,12 @@ function Checkout() {
     mutationFn: async (): Promise<CheckoutConfirmation> => {
       if (!user || !token) {
         throw new Error('Usuário não autenticado.')
+      }
+
+      if (!hasValidPrices) {
+        throw new Error(
+          'Existem NFTs sem preço válido no carrinho.',
+        )
       }
 
       const cartFingerprint = JSON.stringify({
@@ -153,7 +175,11 @@ function Checkout() {
       )
 
       const createdOrder = orderResponse.data
-      const finalTotal = createdOrder.order.total
+      const finalTotal = createdOrder?.order?.total
+
+      if (!isValidPrice(finalTotal)) {
+        throw new Error('A API retornou um total de pedido inválido.')
+      }
 
       const paymentResponse = await api.post<PaymentResponse>(
         '/payments',
@@ -228,7 +254,7 @@ function Checkout() {
           </p>
 
           <p className="mt-6 text-lg font-bold">
-            Total: {confirmation.order.order.total.toFixed(2)} ETH
+            Total: {formatETH(confirmation.order.order.total)}
           </p>
 
           <p className="mt-4 text-xs text-white/40">
@@ -328,15 +354,16 @@ function Checkout() {
 
                   <p className="mt-2 text-sm text-white/50">
                     {item.quantity} unidade(s) ×{' '}
-                    {item.price?.toFixed(2)} ETH
+                    {formatETH(item.price)}
                   </p>
 
                   <p className="mt-1 font-semibold text-[#D9A441]">
                     Subtotal:{' '}
-                    {(
-                      (item.price ?? 0) * item.quantity
-                    ).toFixed(2)}{' '}
-                    ETH
+                    {formatETH(
+                      isValidPrice(item.price)
+                        ? item.price * item.quantity
+                        : null,
+                    )}
                   </p>
                 </div>
               </article>
@@ -397,6 +424,13 @@ function Checkout() {
             </p>
           </div>
 
+          {!hasValidPrices && (
+            <p className="mt-5 text-sm text-red-400">
+              Existe pelo menos um NFT sem preço válido. Volte ao carrinho,
+              remova o item indisponível e tente novamente.
+            </p>
+          )}
+
           {checkoutMutation.isError && (
             <p className="mt-5 text-sm text-red-400">
               Não foi possível processar o pagamento. Tente novamente.
@@ -405,12 +439,16 @@ function Checkout() {
 
           <button
             onClick={() => checkoutMutation.mutate()}
-            disabled={checkoutMutation.isPending}
+            disabled={
+              checkoutMutation.isPending || !hasValidPrices
+            }
             className="mt-8 w-full rounded-full bg-[#D9A441] px-6 py-4 font-bold text-[#140D0A] transition hover:bg-[#edbd62] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {checkoutMutation.isPending
               ? 'Processando pagamento...'
-              : 'Confirmar compra'}
+              : !hasValidPrices
+                ? 'Preço indisponível'
+                : 'Confirmar compra'}
           </button>
 
           <p className="mt-5 text-xs leading-5 text-white/40">
