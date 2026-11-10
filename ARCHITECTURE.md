@@ -2,7 +2,7 @@
 
 ## 1. Visão geral
 
-O GreenMint Marketplace é uma aplicação Front-end desenvolvida com React e TypeScript como desafio técnico para a Jungle Gaming.
+O GreenMint Marketplace é uma aplicação Front-end desenvolvida com React e TypeScript.
 
 A arquitetura separa responsabilidades entre interface, gerenciamento de estado, navegação, comunicação HTTP e atualizações em tempo real.
 
