@@ -65,7 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     loadUser()
-  }, [token])
+  }, [token, queryClient])
 
   async function login(email: string, password: string) {
     const response = await api.post<AuthResponse>('/auth/login', {
