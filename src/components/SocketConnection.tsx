@@ -72,14 +72,11 @@ function SocketConnection() {
         return
       }
 
-      // Catálogo e carrinho (o CartProvider observa a mesma chave ['nfts']).
-      queryClient.setQueryData<NFT[]>(['nfts'], (current) =>
-        current?.map((nft) =>
-          nft.id === event.resourceId
-            ? { ...nft, ...event.data }
-            : nft,
-        ),
-      )
+      // Atualiza todas as consultas do catálogo filtrado e a lista completa
+      // usada pelo carrinho, mantendo filtros e totais consistentes.
+      void queryClient.invalidateQueries({ queryKey: ['nfts'] })
+
+      // Página de detalhe do NFT.
 
       // Página de detalhe do NFT.
       queryClient.setQueryData<NFT>(
