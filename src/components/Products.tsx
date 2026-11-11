@@ -598,7 +598,7 @@ function Products() {
                         ))}
                     </div>
 
-                    {sortedNfts.length === 0 && (
+                    {totalResults === 0 && (
                         <div className="py-16 text-center">
                             <p className="text-lg font-semibold text-white/80">
                                 Nenhum NFT encontrado.
