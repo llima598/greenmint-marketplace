@@ -58,6 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.removeItem('greenmint-token')
         setToken(null)
         setUser(null)
+        queryClient.clear()
       } finally {
         setIsLoading(false)
       }
