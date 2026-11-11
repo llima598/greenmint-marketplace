@@ -70,7 +70,6 @@ test.describe('Perfil do usuário', () => {
       'Sua senha foi alterada com sucesso.',
     )
 
-    await page.getByRole('button', { name: 'Sair' }).click()
     await page.goto('/login')
     await page.getByLabel('E-mail').fill('demo@greenmint.com')
     await page.getByLabel('Senha').fill('novaSenha789')
