@@ -21,9 +21,12 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 ### Autenticação e conta
 - Cadastro, login e logout.
 - Gerenciamento de sessão simulada por token.
+- Atualização dos dados de perfil e senha por endpoints REST simulados.
 - Rotas protegidas.
 - Carrinho associado ao usuário autenticado.
 - Favoritos associados à conta, com acesso dedicado pelo menu.
+- Edição de nome e e-mail, com validação de formato e prevenção de e-mails duplicados.
+- Alteração de senha mediante confirmação da senha atual e validação da nova senha.
 
 ### Carrinho e checkout
 - Adição, remoção e atualização de quantidade dos itens.
@@ -167,6 +170,7 @@ O GreenMint é um projeto de portfólio com backend e serviços externos simulad
 
 - As requisições REST são simuladas pelo MSW.
 - Os dados são armazenados localmente no navegador.
+- A edição de perfil e a alteração de senha são demonstrações client-side/MSW; não substituem autenticação, armazenamento seguro de senhas e validações de um backend real.
 - Os eventos de Socket.IO são simulados.
 - O checkout não realiza transações financeiras reais.
 - Não existe integração real com carteiras, redes blockchain ou contratos inteligentes.
