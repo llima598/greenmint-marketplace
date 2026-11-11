@@ -12,8 +12,9 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 
 ### Exploração do marketplace
 - Listagem de NFTs em catálogo.
-- Busca por nome e filtros por categoria, blockchain e faixa de preço.
-- Ordenação e paginação.
+- Busca por nome e filtros por categoria, blockchain e faixa de preço processados no endpoint do catálogo.
+- Ordenação e paginação no servidor simulado, com totalizadores e contagens de categorias/redes.
+- Tratamento de indisponibilidade temporária da API, com ação para tentar novamente.
 - Sincronização dos filtros e da busca com a URL.
 - Página individual com detalhes de cada NFT.
 - Lista de NFTs favoritos, com inclusão e remoção e persistência separada por usuário autenticado.
@@ -84,7 +85,8 @@ O projeto conta com testes automatizados end-to-end utilizando Playwright.
 
 **Última validação registrada:**
 - Testes E2E de autenticação, perfil, gerenciamento de carteira e fluxo de checkout.
-- Testes de atualização de pedidos em tempo real.
+- Testes de atualização de pedidos em tempo real e idempotência.
+- Testes de filtros, ordenação, paginação, parâmetros inválidos e recuperação após falha temporária da API.
 - Testes de responsividade.
 
 Os resultados acima correspondem à última execução registrada durante o desenvolvimento e podem variar após novas alterações.
