@@ -44,7 +44,6 @@ test.describe('Perfil do usuário', () => {
     await page.getByRole('button', { name: 'Criar minha conta' }).click()
     await expect(page).toHaveURL(/\/$/)
 
-    await page.getByRole('button', { name: 'Sair' }).click()
     await signIn(page)
     await page.goto('/profile')
 
