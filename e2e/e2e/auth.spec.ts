@@ -11,6 +11,9 @@ test.describe('Autenticação', () => {
     await page.getByRole('button', { name: 'Entrar' }).click()
 
     await expect(page).toHaveURL(/\/$/)
+
+    await page.reload()
+    await expect(page.getByRole('link', { name: 'Meu Perfil' })).toBeVisible()
   })
 
   test('mostra erro quando as credenciais são inválidas', async ({
