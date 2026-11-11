@@ -12,16 +12,23 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 
 ### Exploração do marketplace
 - Listagem de NFTs em catálogo.
-- Busca por nome e filtros por categoria, blockchain e faixa de preço.
-- Ordenação e paginação.
+- Busca por nome e filtros por categoria, blockchain e faixa de preço processados no endpoint do catálogo.
+- Ordenação e paginação no servidor simulado, com totalizadores e contagens de categorias/redes.
+- Tratamento de indisponibilidade temporária da API, com ação para tentar novamente.
 - Sincronização dos filtros e da busca com a URL.
 - Página individual com detalhes de cada NFT.
+- Lista de NFTs favoritos, com inclusão e remoção e persistência separada por usuário autenticado.
 
 ### Autenticação e conta
 - Cadastro, login e logout.
 - Gerenciamento de sessão simulada por token.
+- Atualização dos dados de perfil e senha por endpoints REST simulados.
 - Rotas protegidas.
 - Carrinho associado ao usuário autenticado.
+- Favoritos associados à conta, com acesso dedicado pelo menu.
+- Edição de nome e e-mail, com validação de formato e prevenção de e-mails duplicados.
+- Alteração de senha mediante confirmação da senha atual e validação da nova senha.
+- Vinculação e desvinculação de endereço público de carteira nas redes Ethereum, Polygon e Solana, com validação básica do formato e persistência por usuário no MSW.
 
 ### Carrinho e checkout
 - Adição, remoção e atualização de quantidade dos itens.
@@ -77,9 +84,9 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 O projeto conta com testes automatizados end-to-end utilizando Playwright.
 
 **Última validação registrada:**
-- 13 testes E2E aprovados.
-- Testes de autenticação e fluxo de checkout.
-- Testes de atualização de pedidos em tempo real.
+- Testes E2E de autenticação, perfil, gerenciamento de carteira e fluxo de checkout.
+- Testes de atualização de pedidos em tempo real e idempotência.
+- Testes de filtros, ordenação, paginação, parâmetros inválidos e recuperação após falha temporária da API.
 - Testes de responsividade.
 
 Os resultados acima correspondem à última execução registrada durante o desenvolvimento e podem variar após novas alterações.
@@ -165,9 +172,11 @@ O GreenMint é um projeto de portfólio com backend e serviços externos simulad
 
 - As requisições REST são simuladas pelo MSW.
 - Os dados são armazenados localmente no navegador.
+- A edição de perfil e a alteração de senha são demonstrações client-side/MSW; não substituem autenticação, armazenamento seguro de senhas e validações de um backend real.
 - Os eventos de Socket.IO são simulados.
 - O checkout não realiza transações financeiras reais.
-- Não existe integração real com carteiras, redes blockchain ou contratos inteligentes.
+- O gerenciamento de carteira apenas associa um endereço público à conta; não conecta extensões como MetaMask ou Phantom nem interage com redes blockchain ou contratos inteligentes.
+- Nunca informe frases-semente ou chaves privadas na aplicação.
 
 O objetivo é demonstrar a construção de uma aplicação Front-End com fluxos completos, integração entre diferentes tecnologias e tratamento de cenários comuns de uma aplicação comercial.
 

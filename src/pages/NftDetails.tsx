@@ -6,6 +6,7 @@ import axios from 'axios'
 import { api } from '../services/api'
 import type { NFT } from '../data/nfts'
 import { useCart } from '../context/useCart'
+import FavoriteButton from '../components/FavoriteButton'
 
 function NftDetails() {
   const { nftId } = useParams({
@@ -117,9 +118,12 @@ function NftDetails() {
             Marketplace / NFT
           </p>
 
-          <h1 className="text-3xl font-bold sm:text-4xl">
-            {nft.name}
-          </h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-3xl font-bold sm:text-4xl">
+              {nft.name}
+            </h1>
+            <FavoriteButton nftId={nft.id} className="shrink-0" />
+          </div>
 
           <div className="mt-8 rounded-2xl border border-white/10 bg-[#241612] p-6">
             <p className="text-sm text-white/50">Preço atual</p>

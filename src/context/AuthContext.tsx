@@ -28,6 +28,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    function handleSessionExpired() {
+      localStorage.removeItem('greenmint-token')
+      setToken(null)
+      setUser(null)
+      queryClient.clear()
+    }
+
+    window.addEventListener('greenmint:session-expired', handleSessionExpired)
+    return () => window.removeEventListener('greenmint:session-expired', handleSessionExpired)
+  }, [queryClient])
+
+  useEffect(() => {
     async function loadUser() {
       if (!token) {
         setIsLoading(false)
@@ -46,13 +58,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.removeItem('greenmint-token')
         setToken(null)
         setUser(null)
+        queryClient.clear()
       } finally {
         setIsLoading(false)
       }
     }
 
     loadUser()
-  }, [token])
+  }, [token, queryClient])
 
   async function login(email: string, password: string) {
     const response = await api.post<AuthResponse>('/auth/login', {
@@ -86,13 +99,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(response.data.user)
   }
 
-  function logout() {
-    localStorage.removeItem('greenmint-token')
-    setToken(null)
-    setUser(null)
+  async function updateProfile(name: string, email: string) {
+    if (!token) {
+      throw new Error('Sessão inválida ou expirada.')
+    }
 
-    // Remove do cache os dados privados da sessão encerrada.
-    queryClient.removeQueries({ queryKey: ['orders'] })
+    const response = await api.patch<User>(
+      '/auth/profile',
+      { name, email },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+
+    setUser(response.data)
+    queryClient.setQueryData(['profile', response.data.id], response.data)
+  }
+
+  async function updatePassword(
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (!token) {
+      throw new Error('Sessão inválida ou expirada.')
+    }
+
+    await api.patch(
+      '/auth/password',
+      { currentPassword, newPassword },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+  }
+
+  async function logout() {
+    const currentToken = token
+
+    try {
+      if (currentToken) {
+        await api.post('/auth/logout', {}, {
+          headers: { Authorization: `Bearer ${currentToken}` },
+        })
+      }
+    } catch {
+      // O estado local também precisa ser encerrado se o servidor estiver indisponível.
+    } finally {
+      localStorage.removeItem('greenmint-token')
+      setToken(null)
+      setUser(null)
+      queryClient.clear()
+    }
   }
 
   return (
@@ -103,6 +164,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading,
         login,
         register,
+        updateProfile,
+        updatePassword,
         logout,
       }}
     >

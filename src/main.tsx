@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { router } from './router'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
+import { FavoritesProvider } from './context/FavoritesContext'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -38,8 +39,10 @@ async function bootstrap() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
-          <SocketConnection />
-          <RouterProvider router={router} />
+          <FavoritesProvider>
+            <SocketConnection />
+            <RouterProvider router={router} />
+          </FavoritesProvider>
         </CartProvider>
       </AuthProvider>
     </QueryClientProvider>,

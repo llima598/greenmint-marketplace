@@ -17,6 +17,7 @@ interface MockUser {
 interface MockSession {
   token: string
   userId: string
+  expiresAt?: string
 }
 
 interface MockOrder {
@@ -152,9 +153,119 @@ export const handlers = [
       message: 'Cupom aplicado com sucesso!',
     })
   }),
-  // Buscar todos os NFTs
-  http.get('/api/nfts', () => {
-    return HttpResponse.json(mockNfts)
+  // Buscar NFTs com filtros, ordenação e paginação no servidor simulado.
+  // Sem parâmetros, mantém o contrato de lista completa usado pelo carrinho.
+  http.get('/api/nfts', ({ request }) => {
+    const url = new URL(request.url)
+    const hasCatalogParams = [
+      'search', 'sort', 'minPrice', 'maxPrice',
+      'category', 'network', 'page', 'limit',
+    ].some((key) => url.searchParams.has(key))
+
+    if (!hasCatalogParams) {
+      return HttpResponse.json(mockNfts)
+    }
+
+    const failureMode = localStorage.getItem('greenmint-nft-api-simulation')
+    if (failureMode === 'error-once') {
+      localStorage.removeItem('greenmint-nft-api-simulation')
+      return HttpResponse.json(
+        { code: 'TEMPORARY_UNAVAILABLE', message: 'O catálogo está temporariamente indisponível.' },
+        { status: 503 },
+      )
+    }
+    if (failureMode === 'unavailable') {
+      return HttpResponse.json(
+        { code: 'SERVICE_UNAVAILABLE', message: 'O catálogo está temporariamente indisponível.' },
+        { status: 503 },
+      )
+    }
+
+    const search = (url.searchParams.get('search') ?? '').trim().toLocaleLowerCase()
+    const sort = url.searchParams.get('sort') ?? 'recent'
+    const minRaw = url.searchParams.get('minPrice')
+    const maxRaw = url.searchParams.get('maxPrice')
+    const minPrice = minRaw === null ? undefined : Number(minRaw)
+    const maxPrice = maxRaw === null ? undefined : Number(maxRaw)
+    const categories = (url.searchParams.get('category') ?? '').split(',').filter(Boolean)
+    const networks = (url.searchParams.get('network') ?? '').split(',').filter(Boolean)
+    const requestedPage = Number(url.searchParams.get('page') ?? 1)
+    const requestedLimit = Number(url.searchParams.get('limit') ?? 6)
+
+    if (
+      (minPrice !== undefined && (!Number.isFinite(minPrice) || minPrice < 0)) ||
+      (maxPrice !== undefined && (!Number.isFinite(maxPrice) || maxPrice < 0)) ||
+      (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) ||
+      !Number.isInteger(requestedPage) || requestedPage < 1 ||
+      !Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 24 ||
+      !['recent', 'price-asc', 'price-desc', 'name'].includes(sort)
+    ) {
+      return HttpResponse.json(
+        { code: 'INVALID_CATALOG_QUERY', message: 'Os filtros ou parâmetros de paginação são inválidos.' },
+        { status: 400 },
+      )
+    }
+
+    const validCategories = [
+      'Arte digital', 'Fotografia', 'Música', 'Arte 3D',
+      'Colecionáveis', 'Generativa', 'Jogos', 'Utilidade',
+    ]
+    const validNetworks = ['Ethereum', 'Polygon', 'Solana']
+
+    if (
+      categories.some((category) => !validCategories.includes(category)) ||
+      networks.some((network) => !validNetworks.includes(network))
+    ) {
+      return HttpResponse.json(
+        { code: 'INVALID_CATALOG_FILTER', message: 'Categoria ou rede inválida.' },
+        { status: 400 },
+      )
+    }
+
+    const filtered = mockNfts.filter((nft) => {
+      const matchesSearch = nft.name.toLocaleLowerCase().includes(search)
+      const matchesMin = minPrice === undefined || (nft.price !== null && nft.price >= minPrice)
+      const matchesMax = maxPrice === undefined || (nft.price !== null && nft.price <= maxPrice)
+      const matchesCategory = categories.length === 0 || categories.includes(nft.category)
+      const matchesNetwork = networks.length === 0 || networks.includes(nft.network)
+      return matchesSearch && matchesMin && matchesMax && matchesCategory && matchesNetwork
+    })
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sort) {
+        case 'price-asc': return (a.price ?? Infinity) - (b.price ?? Infinity)
+        case 'price-desc': return (b.price ?? -Infinity) - (a.price ?? -Infinity)
+        case 'name': return a.name.localeCompare(b.name)
+        default: return 0
+      }
+    })
+
+    const total = sorted.length
+    const totalPages = Math.max(1, Math.ceil(total / requestedLimit))
+    const currentPage = Math.min(requestedPage, totalPages)
+    const start = (currentPage - 1) * requestedLimit
+
+    return HttpResponse.json({
+      items: sorted.slice(start, start + requestedLimit),
+      total,
+      page: currentPage,
+      limit: requestedLimit,
+      totalPages,
+      facets: {
+        categories: Object.fromEntries(
+          validCategories.map((category) => [
+            category,
+            mockNfts.filter((nft) => nft.category === category).length,
+          ]),
+        ),
+        networks: Object.fromEntries(
+          validNetworks.map((network) => [
+            network,
+            mockNfts.filter((nft) => nft.network === network).length,
+          ]),
+        ),
+      },
+    })
   }),
 
   // Atualizar NFT e emitir evento em tempo real
@@ -300,7 +411,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -336,7 +447,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -503,7 +614,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -671,6 +782,62 @@ export const handlers = [
     )
   }),
 
+  // Consultar carteira vinculada à conta
+  http.get('/api/wallet', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+    if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+    const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
+    return HttpResponse.json(wallets[session.userId] ?? null)
+  }),
+
+  // Vincular ou atualizar endereço público da carteira
+  http.put('/api/wallet', async ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+    if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+
+    const body = (await request.json()) as { address?: string; network?: string }
+    const address = body.address?.trim()
+    const network = body.network
+
+    if (
+      !address ||
+      (network !== 'Ethereum' && network !== 'Polygon' && network !== 'Solana')
+    ) {
+      return HttpResponse.json({ message: 'Informe um endereço público válido para a rede selecionada.' }, { status: 400 })
+    }
+
+    const validAddress = network === 'Solana'
+      ? /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)
+      : /^0x[a-fA-F0-9]{40}$/.test(address)
+
+    if (!validAddress) {
+      return HttpResponse.json({ message: 'Informe um endereço público válido para a rede selecionada.' }, { status: 400 })
+    }
+
+    const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
+    const wallet = { address, network, connectedAt: new Date().toISOString() }
+    wallets[session.userId] = wallet
+    writeStorage('greenmint-wallets', wallets)
+    return HttpResponse.json(wallet)
+  }),
+
+  // Desvincular carteira da conta
+  http.delete('/api/wallet', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+    if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+
+    const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
+    delete wallets[session.userId]
+    writeStorage('greenmint-wallets', wallets)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // Cadastrar usuário
   http.post('/api/auth/register', async ({ request }) => {
     const body = (await request.json()) as {
@@ -719,7 +886,7 @@ export const handlers = [
       [],
     )
 
-    sessions.push({ token, userId: newUser.id })
+    sessions.push({ token, userId: newUser.id, expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() })
     writeStorage('greenmint-sessions', sessions)
 
     return HttpResponse.json(
@@ -785,7 +952,7 @@ export const handlers = [
       [],
     )
 
-    sessions.push({ token, userId: user.id })
+    sessions.push({ token, userId: user.id, expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() })
     writeStorage('greenmint-sessions', sessions)
 
     return HttpResponse.json({
@@ -798,6 +965,146 @@ export const handlers = [
     })
   }),
 
+  // Atualizar nome e e-mail do usuário autenticado
+  http.patch('/api/auth/profile', async ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Sessão inválida ou expirada.' },
+        { status: 401 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      name?: string
+      email?: string
+    }
+    const name = body.name?.trim()
+    const email = body.email?.trim().toLowerCase()
+
+    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return HttpResponse.json(
+        { message: 'Informe um nome e um e-mail válidos.' },
+        { status: 400 },
+      )
+    }
+
+    const users = readStorage<MockUser[]>('greenmint-users', initialUsers)
+    const user = users.find((item) => item.id === session.userId)
+
+    if (!user) {
+      return HttpResponse.json(
+        { message: 'Usuário não encontrado.' },
+        { status: 404 },
+      )
+    }
+
+    const emailInUse = users.some(
+      (item) => item.id !== user.id && item.email.toLowerCase() === email,
+    )
+
+    if (emailInUse) {
+      return HttpResponse.json(
+        { message: 'Este e-mail já está sendo utilizado por outra conta.' },
+        { status: 409 },
+      )
+    }
+
+    user.name = name
+    user.email = email
+    writeStorage('greenmint-users', users)
+
+    return HttpResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    })
+  }),
+
+  // Alterar senha do usuário autenticado
+  http.patch('/api/auth/password', async ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Sessão inválida ou expirada.' },
+        { status: 401 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      currentPassword?: string
+      newPassword?: string
+    }
+
+    if (
+      typeof body.currentPassword !== 'string' ||
+      typeof body.newPassword !== 'string' ||
+      body.newPassword.length < 6
+    ) {
+      return HttpResponse.json(
+        { message: 'A nova senha precisa ter pelo menos 6 caracteres.' },
+        { status: 400 },
+      )
+    }
+
+    const users = readStorage<MockUser[]>('greenmint-users', initialUsers)
+    const user = users.find((item) => item.id === session.userId)
+
+    if (!user) {
+      return HttpResponse.json(
+        { message: 'Usuário não encontrado.' },
+        { status: 404 },
+      )
+    }
+
+    const currentHash = await hashPassword(body.currentPassword)
+    const currentPasswordIsValid =
+      user.passwordHash === currentHash ||
+      (user.passwordHash === undefined && user.password === body.currentPassword)
+
+    if (!currentPasswordIsValid) {
+      return HttpResponse.json(
+        { message: 'A senha atual está incorreta.' },
+        { status: 400 },
+      )
+    }
+
+    user.passwordHash = await hashPassword(body.newPassword)
+    delete user.password
+    writeStorage('greenmint-users', users)
+
+    return HttpResponse.json({ message: 'Senha alterada com sucesso.' })
+  }),
+
+  // Encerrar sessão no servidor simulado
+  http.post('/api/auth/logout', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+
+    if (!token) {
+      return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
+    }
+
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const activeSession = sessions.find(
+      (item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now(),
+    )
+
+    if (!activeSession) {
+      return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+    }
+
+    writeStorage('greenmint-sessions', sessions.filter((item) => item.token !== token))
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // Consultar usuário autenticado
   http.get('/api/auth/me', ({ request }) => {
     const authorization = request.headers.get('Authorization')
@@ -808,7 +1115,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -836,5 +1143,84 @@ export const handlers = [
       name: user.name,
       email: user.email,
     })
+  }),
+
+  // Consultar favoritos do usuário autenticado
+  http.get('/api/favorites', ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Usuário não autenticado.' },
+        { status: 401 },
+      )
+    }
+
+    const favorites = readStorage<string[]>(
+      `greenmint-favorites-${session.userId}`,
+      [],
+    )
+
+    return HttpResponse.json(favorites)
+  }),
+
+  // Adicionar NFT aos favoritos
+  http.post('/api/favorites', async ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Usuário não autenticado.' },
+        { status: 401 },
+      )
+    }
+
+    const body = (await request.json()) as { nftId?: string }
+    const nft = mockNfts.find((item) => item.id === body.nftId)
+
+    if (!nft) {
+      return HttpResponse.json(
+        { message: 'NFT não encontrado.' },
+        { status: 404 },
+      )
+    }
+
+    const storageKey = `greenmint-favorites-${session.userId}`
+    const favorites = readStorage<string[]>(storageKey, [])
+
+    if (!favorites.includes(nft.id)) {
+      favorites.push(nft.id)
+      writeStorage(storageKey, favorites)
+    }
+
+    return HttpResponse.json(favorites, { status: 200 })
+  }),
+
+  // Remover NFT dos favoritos
+  http.delete('/api/favorites/:nftId', ({ params, request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Usuário não autenticado.' },
+        { status: 401 },
+      )
+    }
+
+    const storageKey = `greenmint-favorites-${session.userId}`
+    const favorites = readStorage<string[]>(storageKey, [])
+    const updated = favorites.filter((id) => id !== String(params.nftId))
+    writeStorage(storageKey, updated)
+
+    return HttpResponse.json(updated)
   }),
 ]

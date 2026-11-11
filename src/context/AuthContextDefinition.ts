@@ -22,7 +22,9 @@ export interface AuthContextType {
     email: string,
     password: string,
   ) => Promise<void>
-  logout: () => void
+  updateProfile: (name: string, email: string) => Promise<void>
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  logout: () => Promise<void>
 }
 
 export const AuthContext = createContext<

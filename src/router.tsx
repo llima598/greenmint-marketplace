@@ -1,3 +1,4 @@
+import { Suspense, type ReactNode } from 'react'
 import {
   createRootRoute,
   createRoute,
@@ -6,14 +7,22 @@ import {
 } from '@tanstack/react-router'
 
 import App from './App'
-import NftDetails from './pages/NftDetails'
-import Cart from './pages/Cart'
-import Checkout from './pages/Checkout'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Orders from './pages/Orders'
-import Profile from './pages/Profile'
 import ProtectedRoute from './components/ProtectedRoute'
+import {
+  Cart,
+  Checkout,
+  Favorites,
+  Login,
+  NftDetails,
+  Orders,
+  Profile,
+  Register,
+  RouteLoading,
+} from './router/lazyPages'
+
+function withSuspense(component: ReactNode) {
+  return <Suspense fallback={<RouteLoading />}>{component}</Suspense>
+}
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -44,55 +53,69 @@ const indexRoute = createRoute({
 const nftDetailsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/nft/$nftId',
-  component: NftDetails,
+  component: () => withSuspense(<NftDetails />),
 })
 
 const cartRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/cart',
-  component: Cart,
+  component: () => withSuspense(<Cart />),
 })
 
 const checkoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/checkout',
-  component: () => (
-    <ProtectedRoute>
-      <Checkout />
-    </ProtectedRoute>
-  ),
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Checkout />
+      </ProtectedRoute>,
+    ),
 })
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  component: Login,
+  component: () => withSuspense(<Login />),
 })
 
 const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/register',
-  component: Register,
+  component: () => withSuspense(<Register />),
 })
 
 const ordersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/orders',
-  component: () => (
-    <ProtectedRoute>
-      <Orders />
-    </ProtectedRoute>
-  ),
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Orders />
+      </ProtectedRoute>,
+    ),
+})
+
+const favoritesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/favorites',
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Favorites />
+      </ProtectedRoute>,
+    ),
 })
 
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
-  component: () => (
-    <ProtectedRoute>
-      <Profile />
-    </ProtectedRoute>
-  ),
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Profile />
+      </ProtectedRoute>,
+    ),
 })
 
 const routeTree = rootRoute.addChildren([
@@ -104,6 +127,7 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   ordersRoute,
   profileRoute,
+  favoritesRoute,
 ])
 
 export const router = createRouter({ routeTree })
