@@ -153,9 +153,119 @@ export const handlers = [
       message: 'Cupom aplicado com sucesso!',
     })
   }),
-  // Buscar todos os NFTs
-  http.get('/api/nfts', () => {
-    return HttpResponse.json(mockNfts)
+  // Buscar NFTs com filtros, ordenação e paginação no servidor simulado.
+  // Sem parâmetros, mantém o contrato de lista completa usado pelo carrinho.
+  http.get('/api/nfts', ({ request }) => {
+    const url = new URL(request.url)
+    const hasCatalogParams = [
+      'search', 'sort', 'minPrice', 'maxPrice',
+      'category', 'network', 'page', 'limit',
+    ].some((key) => url.searchParams.has(key))
+
+    const failureMode = localStorage.getItem('greenmint-nft-api-simulation')
+    if (failureMode === 'error-once') {
+      localStorage.removeItem('greenmint-nft-api-simulation')
+      return HttpResponse.json(
+        { code: 'TEMPORARY_UNAVAILABLE', message: 'O catálogo está temporariamente indisponível.' },
+        { status: 503 },
+      )
+    }
+    if (failureMode === 'unavailable') {
+      return HttpResponse.json(
+        { code: 'SERVICE_UNAVAILABLE', message: 'O catálogo está temporariamente indisponível.' },
+        { status: 503 },
+      )
+    }
+
+    if (!hasCatalogParams) {
+      return HttpResponse.json(mockNfts)
+    }
+
+    const search = (url.searchParams.get('search') ?? '').trim().toLocaleLowerCase()
+    const sort = url.searchParams.get('sort') ?? 'recent'
+    const minRaw = url.searchParams.get('minPrice')
+    const maxRaw = url.searchParams.get('maxPrice')
+    const minPrice = minRaw === null ? undefined : Number(minRaw)
+    const maxPrice = maxRaw === null ? undefined : Number(maxRaw)
+    const categories = (url.searchParams.get('category') ?? '').split(',').filter(Boolean)
+    const networks = (url.searchParams.get('network') ?? '').split(',').filter(Boolean)
+    const requestedPage = Number(url.searchParams.get('page') ?? 1)
+    const requestedLimit = Number(url.searchParams.get('limit') ?? 6)
+
+    if (
+      (minPrice !== undefined && (!Number.isFinite(minPrice) || minPrice < 0)) ||
+      (maxPrice !== undefined && (!Number.isFinite(maxPrice) || maxPrice < 0)) ||
+      (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) ||
+      !Number.isInteger(requestedPage) || requestedPage < 1 ||
+      !Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 24 ||
+      !['recent', 'price-asc', 'price-desc', 'name'].includes(sort)
+    ) {
+      return HttpResponse.json(
+        { code: 'INVALID_CATALOG_QUERY', message: 'Os filtros ou parâmetros de paginação são inválidos.' },
+        { status: 400 },
+      )
+    }
+
+    const validCategories = [
+      'Arte digital', 'Fotografia', 'Música', 'Arte 3D',
+      'Colecionáveis', 'Generativa', 'Jogos', 'Utilidade',
+    ]
+    const validNetworks = ['Ethereum', 'Polygon', 'Solana']
+
+    if (
+      categories.some((category) => !validCategories.includes(category)) ||
+      networks.some((network) => !validNetworks.includes(network))
+    ) {
+      return HttpResponse.json(
+        { code: 'INVALID_CATALOG_FILTER', message: 'Categoria ou rede inválida.' },
+        { status: 400 },
+      )
+    }
+
+    const filtered = mockNfts.filter((nft) => {
+      const matchesSearch = nft.name.toLocaleLowerCase().includes(search)
+      const matchesMin = minPrice === undefined || (nft.price !== null && nft.price >= minPrice)
+      const matchesMax = maxPrice === undefined || (nft.price !== null && nft.price <= maxPrice)
+      const matchesCategory = categories.length === 0 || categories.includes(nft.category)
+      const matchesNetwork = networks.length === 0 || networks.includes(nft.network)
+      return matchesSearch && matchesMin && matchesMax && matchesCategory && matchesNetwork
+    })
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sort) {
+        case 'price-asc': return (a.price ?? Infinity) - (b.price ?? Infinity)
+        case 'price-desc': return (b.price ?? -Infinity) - (a.price ?? -Infinity)
+        case 'name': return a.name.localeCompare(b.name)
+        default: return 0
+      }
+    })
+
+    const total = sorted.length
+    const totalPages = Math.max(1, Math.ceil(total / requestedLimit))
+    const currentPage = Math.min(requestedPage, totalPages)
+    const start = (currentPage - 1) * requestedLimit
+
+    return HttpResponse.json({
+      items: sorted.slice(start, start + requestedLimit),
+      total,
+      page: currentPage,
+      limit: requestedLimit,
+      totalPages,
+      facets: {
+        categories: Object.fromEntries(
+          validCategories.map((category) => [
+            category,
+            mockNfts.filter((nft) => nft.category === category).length,
+          ]),
+        ),
+        networks: Object.fromEntries(
+          validNetworks.map((network) => [
+            network,
+            mockNfts.filter((nft) => nft.network === network).length,
+          ]),
+        ),
+      },
+    })
   }),
 
   // Atualizar NFT e emitir evento em tempo real
