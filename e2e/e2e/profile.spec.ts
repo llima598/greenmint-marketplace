@@ -36,6 +36,15 @@ test.describe('Perfil do usuário', () => {
   test('não permite salvar e-mail que já pertence a outra conta', async ({
     page,
   }) => {
+    await page.goto('/register')
+    await page.getByLabel('Nome completo').fill('Outra Conta')
+    await page.getByLabel('E-mail').fill('outro@greenmint.com')
+    await page.getByLabel('Senha', { exact: true }).fill('senha123')
+    await page.getByLabel('Confirmar senha').fill('senha123')
+    await page.getByRole('button', { name: 'Criar minha conta' }).click()
+    await expect(page).toHaveURL(/\/$/)
+
+    await page.getByRole('button', { name: 'Sair' }).click()
     await signIn(page)
     await page.goto('/profile')
 
