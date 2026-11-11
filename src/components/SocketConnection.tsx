@@ -77,8 +77,6 @@ function SocketConnection() {
       void queryClient.invalidateQueries({ queryKey: ['nfts'] })
 
       // Página de detalhe do NFT.
-
-      // Página de detalhe do NFT.
       queryClient.setQueryData<NFT>(
         ['nfts', event.resourceId],
         (current) =>
