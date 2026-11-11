@@ -1,11 +1,12 @@
 
 import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 
 import { useCart } from '../context/useCart'
 import { useAuth } from '../context/useAuth'
 
 function Header() {
+  const navigate = useNavigate()
   const { items } = useCart()
   const { user, isLoading, logout } = useAuth()
 
@@ -15,9 +16,10 @@ function Header() {
     setMenuOpen(false)
   }
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
     closeMenu()
+    await logout()
+    navigate({ to: '/login' })
   }
 
   function handleSearchFocus() {
