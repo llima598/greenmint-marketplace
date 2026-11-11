@@ -39,6 +39,18 @@ const networks: NFTNetwork[] = [
 
 const ITEMS_PER_PAGE = 6
 
+interface NFTCatalogResponse {
+    items: NFT[]
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+    facets: {
+        categories: Record<NFTCategory, number>
+        networks: Record<NFTNetwork, number>
+    }
+}
+
 function FeaturedNft() {
     return (
         <article className="flex min-h-[390px] w-full flex-col overflow-hidden rounded-2xl border border-[#D28A4C]/20 bg-gradient-to-b from-[rgba(210,138,76,0.10)] to-[rgba(210,138,76,0.03)] lg:h-[470px]">
@@ -86,82 +98,41 @@ function Products() {
         (maxPrice !== undefined ? 1 : 0)
 
     const {
-        data: nfts,
+        data: catalog,
         isLoading,
         isError,
+        refetch,
     } = useQuery({
-        queryKey: ['nfts'],
-        queryFn: async (): Promise<NFT[]> => {
-            const response = await api.get<unknown>('/nfts')
+        queryKey: ['nfts', 'catalog', search, sort, minPrice, maxPrice, category, network, page],
+        queryFn: async (): Promise<NFTCatalogResponse> => {
+            const response = await api.get<NFTCatalogResponse>('/nfts', {
+                params: {
+                    search: search || undefined,
+                    sort,
+                    minPrice,
+                    maxPrice,
+                    category,
+                    network,
+                    page,
+                    limit: ITEMS_PER_PAGE,
+                },
+            })
 
-            if (!Array.isArray(response.data)) {
-                throw new Error('A API retornou uma lista de NFTs inválida.')
+            if (!response.data || !Array.isArray(response.data.items) || typeof response.data.total !== 'number' || typeof response.data.totalPages !== 'number') {
+                throw new Error('A API retornou uma resposta de catálogo inválida.')
             }
 
-            return response.data as NFT[]
+            return response.data
         },
+        retry: false,
     })
 
-    const nftList: NFT[] = Array.isArray(nfts) ? nfts : []
-
-    const filteredNfts = nftList.filter((nft) => {
-        const matchesSearch = nft.name
-            .toLowerCase()
-            .includes(search.trim().toLowerCase())
-
-        const matchesMinPrice =
-            minPrice === undefined ||
-            (nft.price !== null && nft.price >= minPrice)
-
-        const matchesMaxPrice =
-            maxPrice === undefined ||
-            (nft.price !== null && nft.price <= maxPrice)
-
-        const matchesCategory =
-            selectedCategories.length === 0 ||
-            selectedCategories.includes(nft.category)
-
-        const matchesNetwork =
-            selectedNetworks.length === 0 ||
-            selectedNetworks.includes(nft.network)
-
-        return (
-            matchesSearch &&
-            matchesMinPrice &&
-            matchesMaxPrice &&
-            matchesCategory &&
-            matchesNetwork
-        )
-    })
-
-    const sortedNfts = [...filteredNfts].sort((a, b) => {
-        switch (sort) {
-            case 'price-asc':
-                return (a.price ?? Infinity) - (b.price ?? Infinity)
-
-            case 'price-desc':
-                return (b.price ?? -Infinity) - (a.price ?? -Infinity)
-
-            case 'name':
-                return a.name.localeCompare(b.name)
-
-            default:
-                return 0
-        }
-    })
-
-    const totalPages = Math.max(
-        1,
-        Math.ceil(sortedNfts.length / ITEMS_PER_PAGE),
-    )
-
-    const currentPage = Math.min(page, totalPages)
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-
-    const paginatedNfts = sortedNfts.slice(
-        startIndex,
-        startIndex + ITEMS_PER_PAGE,
-    )
+    const nftList: NFT[] = catalog?.items ?? []
+    const totalResults = catalog?.total ?? 0
+    const totalPages = catalog?.totalPages ?? 1
+    const currentPage = catalog?.page ?? page
+    const categoryCounts = catalog?.facets.categories
+    const networkCounts = catalog?.facets.networks
 
     function handleSearch(value: string) {
         navigate({
@@ -325,8 +296,18 @@ function Products() {
 
     if (isError) {
         return (
-            <section className="py-12 text-center text-red-400 sm:py-20">
-                Não foi possível carregar os NFTs.
+            <section className="flex flex-col items-center gap-4 py-12 text-center sm:py-20">
+                <p className="text-red-400" role="alert">
+                    Não foi possível carregar os NFTs. O serviço pode estar temporariamente indisponível.
+                </p>
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void refetch()}
+                    className="rounded-full border-[#D9A441] text-[#D9A441] hover:bg-[#D9A441] hover:text-[#140D0A]"
+                >
+                    Tentar novamente
+                </Button>
             </section>
         )
     }
@@ -400,7 +381,7 @@ function Products() {
                                         </span>
 
                                         <span>
-                                            ({nftList.filter((nft) => nft.category === name).length})
+                                            ({categoryCounts?.[name] ?? 0})
                                         </span>
                                     </label>
                                 ))}
@@ -493,7 +474,7 @@ function Products() {
                                         </span>
 
                                         <span>
-                                            ({nftList.filter((nft) => nft.network === name).length})
+                                            ({networkCounts?.[name] ?? 0})
                                         </span>
                                     </label>
                                 ))}
@@ -534,7 +515,7 @@ function Products() {
                     <div className="mb-6 flex flex-col gap-4 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
                             <span>
-                                {sortedNfts.length} NFTs encontrados
+                                {totalResults} NFTs encontrados
                             </span>
 
                             {activeFiltersCount > 0 && (
@@ -582,7 +563,7 @@ function Products() {
                     </div>
 
                     <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 xl:gap-8">
-                        {paginatedNfts.map((nft) => (
+                        {nftList.map((nft) => (
                             <article
                                 key={nft.id}
                                 className="relative min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-[#D9A441]/60"
