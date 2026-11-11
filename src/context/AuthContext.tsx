@@ -145,6 +145,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           headers: { Authorization: `Bearer ${currentToken}` },
         })
       }
+    } catch {
+      // O estado local também precisa ser encerrado se o servidor estiver indisponível.
     } finally {
       localStorage.removeItem('greenmint-token')
       setToken(null)
