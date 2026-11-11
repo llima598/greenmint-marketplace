@@ -301,7 +301,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token && (!item.expiresAt || Date.parse(item.expiresAt) > Date.now()))
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
