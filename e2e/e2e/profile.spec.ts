@@ -78,3 +78,36 @@ test.describe('Perfil do usuário', () => {
     await expect(page).toHaveURL(/\/$/)
   })
 })
+
+
+test.describe('Carteira digital', () => {
+  test('permite vincular e desconectar uma carteira Ethereum', async ({ page }) => {
+    await signIn(page)
+    await page.goto('/profile')
+
+    await page.getByLabel('Rede').selectOption('Ethereum')
+    await page.getByLabel('Endereço público').fill('0x742d35Cc6634C0532925a3b844Bc454e4438f44e')
+    await page.getByRole('button', { name: 'Vincular carteira' }).click()
+
+    await expect(page.getByText('Carteira vinculada com sucesso.')).toBeVisible()
+    await expect(page.getByText('Ethereum', { exact: true })).toBeVisible()
+    await expect(page.getByText('0x742d35Cc6634C0532925a3b844Bc454e4438f44e')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Desconectar carteira' }).click()
+    await expect(page.getByText('Carteira desconectada.')).toBeVisible()
+    await expect(page.getByLabel('Endereço público')).toBeVisible()
+  })
+
+  test('valida o endereço conforme a rede selecionada', async ({ page }) => {
+    await signIn(page)
+    await page.goto('/profile')
+
+    await page.getByLabel('Rede').selectOption('Polygon')
+    await page.getByLabel('Endereço público').fill('endereco-invalido')
+    await page.getByRole('button', { name: 'Vincular carteira' }).click()
+
+    await expect(page.getByRole('alert')).toHaveText(
+      'Informe um endereço público válido para a rede selecionada.',
+    )
+  })
+})
