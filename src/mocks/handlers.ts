@@ -17,6 +17,7 @@ interface MockUser {
 interface MockSession {
   token: string
   userId: string
+  expiresAt?: string
 }
 
 interface MockOrder {
@@ -300,7 +301,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && (!item.expiresAt || Date.parse(item.expiresAt) > Date.now()))
 
     if (!session) {
       return HttpResponse.json(
@@ -775,7 +776,7 @@ export const handlers = [
       [],
     )
 
-    sessions.push({ token, userId: newUser.id })
+    sessions.push({ token, userId: newUser.id, expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() })
     writeStorage('greenmint-sessions', sessions)
 
     return HttpResponse.json(
@@ -841,7 +842,7 @@ export const handlers = [
       [],
     )
 
-    sessions.push({ token, userId: user.id })
+    sessions.push({ token, userId: user.id, expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() })
     writeStorage('greenmint-sessions', sessions)
 
     return HttpResponse.json({
@@ -971,6 +972,27 @@ export const handlers = [
     writeStorage('greenmint-users', users)
 
     return HttpResponse.json({ message: 'Senha alterada com sucesso.' })
+  }),
+
+  // Encerrar sessão no servidor simulado
+  http.post('/api/auth/logout', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+
+    if (!token) {
+      return HttpResponse.json({ message: 'Sessão inválida.' }, { status: 401 })
+    }
+
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const activeSession = sessions.find(
+      (item) => item.token === token && (!item.expiresAt || Date.parse(item.expiresAt) > Date.now()),
+    )
+
+    if (!activeSession) {
+      return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+    }
+
+    writeStorage('greenmint-sessions', sessions.filter((item) => item.token !== token))
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // Consultar usuário autenticado
