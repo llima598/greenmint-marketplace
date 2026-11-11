@@ -837,4 +837,83 @@ export const handlers = [
       email: user.email,
     })
   }),
+
+  // Consultar favoritos do usuário autenticado
+  http.get('/api/favorites', ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Usuário não autenticado.' },
+        { status: 401 },
+      )
+    }
+
+    const favorites = readStorage<string[]>(
+      `greenmint-favorites-${session.userId}`,
+      [],
+    )
+
+    return HttpResponse.json(favorites)
+  }),
+
+  // Adicionar NFT aos favoritos
+  http.post('/api/favorites', async ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Usuário não autenticado.' },
+        { status: 401 },
+      )
+    }
+
+    const body = (await request.json()) as { nftId?: string }
+    const nft = mockNfts.find((item) => item.id === body.nftId)
+
+    if (!nft) {
+      return HttpResponse.json(
+        { message: 'NFT não encontrado.' },
+        { status: 404 },
+      )
+    }
+
+    const storageKey = `greenmint-favorites-${session.userId}`
+    const favorites = readStorage<string[]>(storageKey, [])
+
+    if (!favorites.includes(nft.id)) {
+      favorites.push(nft.id)
+      writeStorage(storageKey, favorites)
+    }
+
+    return HttpResponse.json(favorites, { status: 200 })
+  }),
+
+  // Remover NFT dos favoritos
+  http.delete('/api/favorites/:nftId', ({ params, request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Usuário não autenticado.' },
+        { status: 401 },
+      )
+    }
+
+    const storageKey = `greenmint-favorites-${session.userId}`
+    const favorites = readStorage<string[]>(storageKey, [])
+    const updated = favorites.filter((id) => id !== String(params.nftId))
+    writeStorage(storageKey, updated)
+
+    return HttpResponse.json(updated)
+  }),
 ]
