@@ -692,16 +692,21 @@ export const handlers = [
     const address = body.address?.trim()
     const network = body.network
     const validNetwork = ['Ethereum', 'Polygon', 'Solana'].includes(network ?? '')
-    const validAddress = network === 'Solana'
-      ? Boolean(address && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))
-      : Boolean(address && /^0x[a-fA-F0-9]{40}$/.test(address))
 
-    if (!validNetwork || !validAddress) {
+    if (!address || !validNetwork) {
+      return HttpResponse.json({ message: 'Informe um endereço público válido para a rede selecionada.' }, { status: 400 })
+    }
+
+    const validAddress = network === 'Solana'
+      ? /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)
+      : /^0x[a-fA-F0-9]{40}$/.test(address)
+
+    if (!validAddress) {
       return HttpResponse.json({ message: 'Informe um endereço público válido para a rede selecionada.' }, { status: 400 })
     }
 
     const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
-    const wallet = { address, network: network!, connectedAt: new Date().toISOString() }
+    const wallet = { address, network, connectedAt: new Date().toISOString() }
     wallets[session.userId] = wallet
     writeStorage('greenmint-wallets', wallets)
     return HttpResponse.json(wallet)
