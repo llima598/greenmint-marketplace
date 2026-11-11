@@ -28,6 +28,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    function handleSessionExpired() {
+      localStorage.removeItem('greenmint-token')
+      setToken(null)
+      setUser(null)
+      queryClient.clear()
+    }
+
+    window.addEventListener('greenmint:session-expired', handleSessionExpired)
+    return () => window.removeEventListener('greenmint:session-expired', handleSessionExpired)
+  }, [queryClient])
+
+  useEffect(() => {
     async function loadUser() {
       if (!token) {
         setIsLoading(false)
@@ -124,13 +136,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     )
   }
 
-  function logout() {
-    localStorage.removeItem('greenmint-token')
-    setToken(null)
-    setUser(null)
+  async function logout() {
+    const currentToken = token
 
-    // Remove do cache os dados privados da sessão encerrada.
-    queryClient.removeQueries({ queryKey: ['orders'] })
+    try {
+      if (currentToken) {
+        await api.post('/auth/logout', {}, {
+          headers: { Authorization: `Bearer ${currentToken}` },
+        })
+      }
+    } finally {
+      localStorage.removeItem('greenmint-token')
+      setToken(null)
+      setUser(null)
+      queryClient.clear()
+    }
   }
 
   return (
