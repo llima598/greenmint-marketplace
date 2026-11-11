@@ -323,7 +323,7 @@ test.describe('Catálogo: filtros e paginação no servidor', () => {
     expect(result.pageOne.totalPages).toBe(5)
     expect(result.pageTwo.page).toBe(2)
     expect(result.pageOne.items[0].id).not.toBe(result.pageTwo.items[0].id)
-    expect(result.pageOne.items[0].price).toBeLessThanOrEqual(result.pageOne.items[1].price ?? Infinity)
+    expect((result.pageOne.items[0].price ?? Infinity)).toBeLessThanOrEqual(result.pageOne.items[1].price ?? Infinity)
   })
 
   test('rejeita filtros e parâmetros de paginação inválidos', async ({ page }) => {
@@ -344,7 +344,7 @@ test.describe('Catálogo: filtros e paginação no servidor', () => {
 test.describe('Catálogo: recuperação de falha da API', () => {
   test('exibe erro temporário e permite tentar novamente', async ({ page }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('greenmint-nft-api-simulation', 'error-once')
+      localStorage.setItem('greenmint-nft-api-simulation', 'unavailable')
     })
 
     await page.goto('/')
@@ -352,6 +352,7 @@ test.describe('Catálogo: recuperação de falha da API', () => {
     await expect(page.getByRole('alert')).toContainText(
       'O serviço pode estar temporariamente indisponível',
     )
+    await page.evaluate(() => localStorage.removeItem('greenmint-nft-api-simulation'))
     await page.getByRole('button', { name: 'Tentar novamente' }).click()
     await expect(page.locator('a[href^="/nft/"]').first()).toBeVisible()
     await expect(page.getByText(/NFTs encontrados/)).toBeVisible()
