@@ -13,6 +13,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Orders from './pages/Orders'
 import Profile from './pages/Profile'
+import Favorites from './pages/Favorites'
 import ProtectedRoute from './components/ProtectedRoute'
 
 const rootRoute = createRootRoute({
@@ -85,6 +86,16 @@ const ordersRoute = createRoute({
   ),
 })
 
+const favoritesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/favorites',
+  component: () => (
+    <ProtectedRoute>
+      <Favorites />
+    </ProtectedRoute>
+  ),
+})
+
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
@@ -104,6 +115,7 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   ordersRoute,
   profileRoute,
+  favoritesRoute,
 ])
 
 export const router = createRouter({ routeTree })
