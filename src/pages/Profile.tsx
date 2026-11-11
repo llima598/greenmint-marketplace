@@ -1,10 +1,16 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { isAxiosError } from 'axios'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../services/api'
 import { useAuth } from '../context/useAuth'
+
+interface Wallet {
+  address: string
+  network: 'Ethereum' | 'Polygon' | 'Solana'
+  connectedAt: string
+}
 
 interface Order {
   id: string
@@ -38,6 +44,11 @@ function formatETH(price: unknown): string {
 
 function Profile() {
   const { user, token, updateProfile, updatePassword } = useAuth()
+  const queryClient = useQueryClient()
+  const [walletAddress, setWalletAddress] = useState('')
+  const [walletNetwork, setWalletNetwork] = useState<Wallet['network']>('Ethereum')
+  const [walletError, setWalletError] = useState('')
+  const [walletSuccess, setWalletSuccess] = useState('')
 
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
@@ -131,6 +142,56 @@ function Profile() {
       setIsSavingPassword(false)
     }
   }
+
+  const { data: wallet, isLoading: isWalletLoading } = useQuery({
+    queryKey: ['wallet', user?.id],
+    queryFn: async () => {
+      const response = await api.get<Wallet | null>('/wallet', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return response.data
+    },
+    enabled: Boolean(user && token),
+  })
+
+  const saveWallet = useMutation({
+    mutationFn: async () => {
+      const response = await api.put<Wallet>('/wallet', {
+        address: walletAddress.trim(),
+        network: walletNetwork,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      return response.data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['wallet', user?.id], data)
+      setWalletAddress('')
+      setWalletSuccess('Carteira vinculada com sucesso.')
+      setWalletError('')
+    },
+    onError: (error) => {
+      setWalletError(getRequestError(error, 'Não foi possível vincular a carteira.'))
+      setWalletSuccess('')
+    },
+  })
+
+  const disconnectWallet = useMutation({
+    mutationFn: async () => {
+      await api.delete('/wallet', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(['wallet', user?.id], null)
+      setWalletSuccess('Carteira desconectada.')
+      setWalletError('')
+    },
+    onError: (error) => {
+      setWalletError(getRequestError(error, 'Não foi possível desconectar a carteira.'))
+      setWalletSuccess('')
+    },
+  })
 
   const confirmedOrders =
     orders?.filter((order) => order.status === 'confirmed') ?? []
@@ -323,16 +384,81 @@ function Profile() {
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6">
           <h2 className="text-xl font-semibold">Carteira digital</h2>
-          <p className="mt-3 text-sm text-[#B7A99A]">Nenhuma carteira conectada.</p>
-          <button
-            type="button"
-            disabled
-            className="mt-5 cursor-not-allowed rounded-full border border-white/20 px-5 py-2 text-sm text-white/40"
-          >
-            Conectar carteira
-          </button>
-          <p className="mt-3 text-xs text-white/40">
-            Integração de carteira será implementada posteriormente.
+          <p className="mt-2 text-sm text-[#B7A99A]">
+            Vincule um endereço público para associá-lo à sua conta.
+          </p>
+
+          {isWalletLoading ? (
+            <p className="mt-5 text-sm text-[#B7A99A]">Carregando carteira...</p>
+          ) : wallet ? (
+            <div className="mt-5 rounded-xl border border-[#D9A441]/30 bg-[#D9A441]/5 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-[#D9A441]">Carteira vinculada</span>
+                <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs text-green-400">{wallet.network}</span>
+              </div>
+              <p className="mt-3 break-all font-mono text-sm text-white">{wallet.address}</p>
+              <p className="mt-2 text-xs text-white/40">
+                Vinculada em {new Date(wallet.connectedAt).toLocaleDateString('pt-BR')}
+              </p>
+              <button
+                type="button"
+                onClick={() => disconnectWallet.mutate()}
+                disabled={disconnectWallet.isPending}
+                className="mt-4 rounded-full border border-red-400/40 px-5 py-2 text-sm text-red-300 transition hover:bg-red-400/10 disabled:opacity-50"
+              >
+                {disconnectWallet.isPending ? 'Desconectando...' : 'Desconectar carteira'}
+              </button>
+            </div>
+          ) : (
+            <form
+              className="mt-5 space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                setWalletError('')
+                setWalletSuccess('')
+                saveWallet.mutate()
+              }}
+            >
+              <div>
+                <label htmlFor="wallet-network" className="mb-2 block text-sm text-[#B7A99A]">Rede</label>
+                <select
+                  id="wallet-network"
+                  value={walletNetwork}
+                  onChange={(event) => setWalletNetwork(event.target.value as Wallet['network'])}
+                  className="w-full rounded-xl border border-white/10 bg-[#140D0A] px-4 py-3 text-white outline-none focus:border-[#D9A441]"
+                >
+                  <option value="Ethereum">Ethereum</option>
+                  <option value="Polygon">Polygon</option>
+                  <option value="Solana">Solana</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="wallet-address" className="mb-2 block text-sm text-[#B7A99A]">Endereço público</label>
+                <input
+                  id="wallet-address"
+                  type="text"
+                  value={walletAddress}
+                  onChange={(event) => setWalletAddress(event.target.value)}
+                  placeholder={walletNetwork === 'Solana' ? 'Endereço público Solana' : '0x...'}
+                  required
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-full rounded-xl border border-white/10 bg-[#140D0A] px-4 py-3 font-mono text-sm text-white outline-none focus:border-[#D9A441]"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saveWallet.isPending || !walletAddress.trim()}
+                className="rounded-full bg-[#D9A441] px-6 py-3 font-semibold text-[#140D0A] transition hover:bg-[#edbd62] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saveWallet.isPending ? 'Vinculando...' : 'Vincular carteira'}
+              </button>
+            </form>
+          )}
+          {walletError && <p role="alert" className="mt-4 text-sm text-red-400">{walletError}</p>}
+          {walletSuccess && <p role="status" className="mt-4 text-sm text-green-400">{walletSuccess}</p>}
+          <p className="mt-4 text-xs text-white/40">
+            Demonstração: o endereço é armazenado no backend simulado (MSW). Não há conexão com MetaMask, Phantom ou blockchain, e nunca solicite ou informe sua frase-semente ou chave privada.
           </p>
         </section>
       </div>
