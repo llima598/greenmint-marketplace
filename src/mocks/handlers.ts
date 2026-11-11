@@ -691,9 +691,11 @@ export const handlers = [
     const body = (await request.json()) as { address?: string; network?: string }
     const address = body.address?.trim()
     const network = body.network
-    const validNetwork = ['Ethereum', 'Polygon', 'Solana'].includes(network ?? '')
 
-    if (!address || !validNetwork) {
+    if (
+      !address ||
+      (network !== 'Ethereum' && network !== 'Polygon' && network !== 'Solana')
+    ) {
       return HttpResponse.json({ message: 'Informe um endereço público válido para a rede selecionada.' }, { status: 400 })
     }
 
