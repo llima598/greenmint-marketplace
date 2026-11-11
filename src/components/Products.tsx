@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { api } from '../services/api'
 import type { NFT, NFTCategory, NFTNetwork } from '../data/nfts'
+import FavoriteButton from './FavoriteButton'
 
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -582,14 +583,19 @@ function Products() {
 
                     <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 xl:gap-8">
                         {paginatedNfts.map((nft) => (
-                            <Link
+                            <article
                                 key={nft.id}
-                                to="/nft/$nftId"
-                                params={{ nftId: nft.id }}
-                                aria-label={`Ver detalhes de ${nft.name}`}
-                                className="block min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-[#D9A441]/60 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D9A441]"
+                                className="relative min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:border-[#D9A441]/60"
                             >
-                                <article>
+                                <div className="absolute right-3 top-3 z-10">
+                                    <FavoriteButton nftId={nft.id} />
+                                </div>
+                                <Link
+                                    to="/nft/$nftId"
+                                    params={{ nftId: nft.id }}
+                                    aria-label={`Ver detalhes de ${nft.name}`}
+                                    className="block focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D9A441]"
+                                >
                                     <div className="flex aspect-square items-center justify-center bg-[#211713] p-4 sm:p-6 lg:p-8">
                                         <img
                                             src={`/images/nfts/${nft.image}`}
@@ -598,8 +604,16 @@ function Products() {
                                             className="h-full w-full object-contain"
                                         />
                                     </div>
-                                </article>
-                            </Link>
+                                    <div className="flex items-center justify-between gap-2 p-4">
+                                        <h3 className="truncate font-semibold text-white">{nft.name}</h3>
+                                        <span className="shrink-0 text-sm font-semibold text-[#D9A441]">
+                                            {typeof nft.price === 'number'
+                                                ? `${nft.price.toFixed(2)} ETH`
+                                                : 'Indisponível'}
+                                        </span>
+                                    </div>
+                                </Link>
+                            </article>
                         ))}
                     </div>
 
