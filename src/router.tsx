@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import {
   createRootRoute,
   createRoute,
@@ -6,15 +7,32 @@ import {
 } from '@tanstack/react-router'
 
 import App from './App'
-import NftDetails from './pages/NftDetails'
-import Cart from './pages/Cart'
-import Checkout from './pages/Checkout'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Orders from './pages/Orders'
-import Profile from './pages/Profile'
-import Favorites from './pages/Favorites'
 import ProtectedRoute from './components/ProtectedRoute'
+
+const NftDetails = lazy(() => import('./pages/NftDetails'))
+const Cart = lazy(() => import('./pages/Cart'))
+const Checkout = lazy(() => import('./pages/Checkout'))
+const Login = lazy(() => import('./pages/Login'))
+const Register = lazy(() => import('./pages/Register'))
+const Orders = lazy(() => import('./pages/Orders'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Favorites = lazy(() => import('./pages/Favorites'))
+
+function RouteLoading() {
+  return (
+    <main
+      className="flex min-h-[50vh] items-center justify-center bg-[#140D0A] px-4 text-sm text-[#B7A99A]"
+      role="status"
+      aria-live="polite"
+    >
+      Carregando página...
+    </main>
+  )
+}
+
+function withSuspense(component: React.ReactNode) {
+  return <Suspense fallback={<RouteLoading />}>{component}</Suspense>
+}
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -45,65 +63,69 @@ const indexRoute = createRoute({
 const nftDetailsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/nft/$nftId',
-  component: NftDetails,
+  component: () => withSuspense(<NftDetails />),
 })
 
 const cartRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/cart',
-  component: Cart,
+  component: () => withSuspense(<Cart />),
 })
 
 const checkoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/checkout',
-  component: () => (
-    <ProtectedRoute>
-      <Checkout />
-    </ProtectedRoute>
-  ),
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Checkout />
+      </ProtectedRoute>,
+    ),
 })
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  component: Login,
+  component: () => withSuspense(<Login />),
 })
 
 const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/register',
-  component: Register,
+  component: () => withSuspense(<Register />),
 })
 
 const ordersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/orders',
-  component: () => (
-    <ProtectedRoute>
-      <Orders />
-    </ProtectedRoute>
-  ),
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Orders />
+      </ProtectedRoute>,
+    ),
 })
 
 const favoritesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/favorites',
-  component: () => (
-    <ProtectedRoute>
-      <Favorites />
-    </ProtectedRoute>
-  ),
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Favorites />
+      </ProtectedRoute>,
+    ),
 })
 
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
-  component: () => (
-    <ProtectedRoute>
-      <Profile />
-    </ProtectedRoute>
-  ),
+  component: () =>
+    withSuspense(
+      <ProtectedRoute>
+        <Profile />
+      </ProtectedRoute>,
+    ),
 })
 
 const routeTree = rootRoute.addChildren([
