@@ -86,6 +86,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(response.data.user)
   }
 
+  async function updateProfile(name: string, email: string) {
+    if (!token) {
+      throw new Error('Sessão inválida ou expirada.')
+    }
+
+    const response = await api.patch<User>(
+      '/auth/profile',
+      { name, email },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+
+    setUser(response.data)
+    queryClient.setQueryData(['profile', response.data.id], response.data)
+  }
+
+  async function updatePassword(
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (!token) {
+      throw new Error('Sessão inválida ou expirada.')
+    }
+
+    await api.patch(
+      '/auth/password',
+      { currentPassword, newPassword },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+  }
+
   function logout() {
     localStorage.removeItem('greenmint-token')
     setToken(null)
@@ -103,6 +141,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading,
         login,
         register,
+        updateProfile,
+        updatePassword,
         logout,
       }}
     >
