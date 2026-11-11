@@ -262,3 +262,98 @@ test.describe('Cadastro', () => {
     await expect(page).toHaveURL(/\/$/)
   })
 })
+
+
+test.describe('Catálogo: filtros e paginação no servidor', () => {
+  test('aplica filtros, ordenação e paginação pela API', async ({ page }) => {
+    await page.goto('/')
+    await waitForMocks(page)
+
+    const result = await page.evaluate(async () => {
+      const firstParams = new URLSearchParams({
+        category: 'Música',
+        network: 'Solana',
+        minPrice: '0.5',
+        maxPrice: '1.2',
+        sort: 'price-desc',
+        page: '1',
+        limit: '2',
+      })
+      const filteredResponse = await fetch('/api/nfts?' + firstParams.toString())
+      const filtered = await filteredResponse.json() as {
+        items: { id: string; category: string; network: string; price: number | null }[]
+        total: number
+        page: number
+        totalPages: number
+      }
+
+      const pageOneResponse = await fetch('/api/nfts?page=1&limit=2&sort=price-asc')
+      const pageOne = await pageOneResponse.json() as {
+        items: { id: string; price: number | null }[]
+        total: number
+        page: number
+        totalPages: number
+      }
+
+      const pageTwoResponse = await fetch('/api/nfts?page=2&limit=2&sort=price-asc')
+      const pageTwo = await pageTwoResponse.json() as {
+        items: { id: string; price: number | null }[]
+        total: number
+        page: number
+        totalPages: number
+      }
+
+      return {
+        filteredStatus: filteredResponse.status,
+        filtered,
+        pageOne,
+        pageTwo,
+      }
+    })
+
+    expect(result.filteredStatus).toBe(200)
+    expect(result.filtered.total).toBe(1)
+    expect(result.filtered.items).toHaveLength(1)
+    expect(result.filtered.items[0].category).toBe('Música')
+    expect(result.filtered.items[0].network).toBe('Solana')
+    expect(result.filtered.items[0].price).toBeGreaterThanOrEqual(0.5)
+    expect(result.filtered.items[0].price).toBeLessThanOrEqual(1.2)
+    expect(result.pageOne.total).toBe(9)
+    expect(result.pageOne.items).toHaveLength(2)
+    expect(result.pageOne.totalPages).toBe(5)
+    expect(result.pageTwo.page).toBe(2)
+    expect(result.pageOne.items[0].id).not.toBe(result.pageTwo.items[0].id)
+    expect(result.pageOne.items[0].price).toBeLessThanOrEqual(result.pageOne.items[1].price ?? Infinity)
+  })
+
+  test('rejeita filtros e parâmetros de paginação inválidos', async ({ page }) => {
+    await page.goto('/')
+    await waitForMocks(page)
+
+    const result = await page.evaluate(async () => {
+      const invalidPrice = await fetch('/api/nfts?minPrice=5&maxPrice=1&page=1&limit=6')
+      const invalidCategory = await fetch('/api/nfts?category=CategoriaInexistente&page=1&limit=6')
+      const excessiveLimit = await fetch('/api/nfts?page=1&limit=100')
+      return [invalidPrice.status, invalidCategory.status, excessiveLimit.status]
+    })
+
+    expect(result).toEqual([400, 400, 400])
+  })
+})
+
+test.describe('Catálogo: recuperação de falha da API', () => {
+  test('exibe erro temporário e permite tentar novamente', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('greenmint-nft-api-simulation', 'error-once')
+    })
+
+    await page.goto('/')
+
+    await expect(page.getByRole('alert')).toContainText(
+      'O serviço pode estar temporariamente indisponível',
+    )
+    await page.getByRole('button', { name: 'Tentar novamente' }).click()
+    await expect(page.locator('a[href^="/nft/"]').first()).toBeVisible()
+    await expect(page.getByText(/NFTs encontrados/)).toBeVisible()
+  })
+})
