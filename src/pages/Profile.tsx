@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
+import { isAxiosError } from 'axios'
 import { useQuery } from '@tanstack/react-query'
 
 import { api } from '../services/api'
@@ -15,6 +16,14 @@ interface Order {
   }[]
   total: number
   createdAt: string
+}
+
+function getRequestError(error: unknown, fallback: string): string {
+  if (isAxiosError<{ message?: string }>(error)) {
+    return error.response?.data?.message ?? fallback
+  }
+
+  return error instanceof Error ? error.message : fallback
 }
 
 function isValidPrice(price: unknown): price is number {
@@ -84,9 +93,7 @@ function Profile() {
       setProfileSuccess('Seus dados foram atualizados com sucesso.')
     } catch (error) {
       setProfileError(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível atualizar seus dados.',
+        getRequestError(error, 'Não foi possível atualizar seus dados.'),
       )
     } finally {
       setIsSavingProfile(false)
@@ -118,9 +125,7 @@ function Profile() {
       setPasswordSuccess('Sua senha foi alterada com sucesso.')
     } catch (error) {
       setPasswordError(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível alterar sua senha.',
+        getRequestError(error, 'Não foi possível alterar sua senha.'),
       )
     } finally {
       setIsSavingPassword(false)
