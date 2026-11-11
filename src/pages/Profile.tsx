@@ -81,10 +81,6 @@ function Profile() {
     enabled: Boolean(user && token),
   })
 
-  if (!user) {
-    return null
-  }
-
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setProfileError('')
@@ -192,6 +188,11 @@ function Profile() {
       setWalletSuccess('')
     },
   })
+
+  if (!user) {
+    return null
+  }
+
 
   const confirmedOrders =
     orders?.filter((order) => order.status === 'confirmed') ?? []
