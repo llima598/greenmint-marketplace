@@ -63,7 +63,7 @@ test.describe('Perfil do usuário', () => {
     await page.goto('/profile')
 
     await page.getByLabel('Senha atual').fill('123456')
-    await page.getByLabel('Nova senha').fill('novaSenha789')
+    await page.getByLabel('Nova senha', { exact: true }).fill('novaSenha789')
     await page.getByLabel('Confirmar nova senha').fill('novaSenha789')
     await page.getByRole('button', { name: 'Alterar senha' }).click()
 
