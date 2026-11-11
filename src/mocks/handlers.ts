@@ -162,6 +162,10 @@ export const handlers = [
       'category', 'network', 'page', 'limit',
     ].some((key) => url.searchParams.has(key))
 
+    if (!hasCatalogParams) {
+      return HttpResponse.json(mockNfts)
+    }
+
     const failureMode = localStorage.getItem('greenmint-nft-api-simulation')
     if (failureMode === 'error-once') {
       localStorage.removeItem('greenmint-nft-api-simulation')
@@ -175,10 +179,6 @@ export const handlers = [
         { code: 'SERVICE_UNAVAILABLE', message: 'O catálogo está temporariamente indisponível.' },
         { status: 503 },
       )
-    }
-
-    if (!hasCatalogParams) {
-      return HttpResponse.json(mockNfts)
     }
 
     const search = (url.searchParams.get('search') ?? '').trim().toLocaleLowerCase()
