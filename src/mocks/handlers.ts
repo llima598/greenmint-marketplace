@@ -671,6 +671,55 @@ export const handlers = [
     )
   }),
 
+  // Consultar carteira vinculada à conta
+  http.get('/api/wallet', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+    if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+    const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
+    return HttpResponse.json(wallets[session.userId] ?? null)
+  }),
+
+  // Vincular ou atualizar endereço público da carteira
+  http.put('/api/wallet', async ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+    if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+
+    const body = (await request.json()) as { address?: string; network?: string }
+    const address = body.address?.trim()
+    const network = body.network
+    const validNetwork = ['Ethereum', 'Polygon', 'Solana'].includes(network ?? '')
+    const validAddress = network === 'Solana'
+      ? Boolean(address && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))
+      : Boolean(address && /^0x[a-fA-F0-9]{40}$/.test(address))
+
+    if (!validNetwork || !validAddress) {
+      return HttpResponse.json({ message: 'Informe um endereço público válido para a rede selecionada.' }, { status: 400 })
+    }
+
+    const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
+    const wallet = { address, network: network!, connectedAt: new Date().toISOString() }
+    wallets[session.userId] = wallet
+    writeStorage('greenmint-wallets', wallets)
+    return HttpResponse.json(wallet)
+  }),
+
+  // Desvincular carteira da conta
+  http.delete('/api/wallet', ({ request }) => {
+    const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+    if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
+
+    const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
+    delete wallets[session.userId]
+    writeStorage('greenmint-wallets', wallets)
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   // Cadastrar usuário
   http.post('/api/auth/register', async ({ request }) => {
     const body = (await request.json()) as {
