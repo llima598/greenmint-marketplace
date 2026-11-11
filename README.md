@@ -27,6 +27,7 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 - Favoritos associados à conta, com acesso dedicado pelo menu.
 - Edição de nome e e-mail, com validação de formato e prevenção de e-mails duplicados.
 - Alteração de senha mediante confirmação da senha atual e validação da nova senha.
+- Vinculação e desvinculação de endereço público de carteira nas redes Ethereum, Polygon e Solana, com validação básica do formato e persistência por usuário no MSW.
 
 ### Carrinho e checkout
 - Adição, remoção e atualização de quantidade dos itens.
@@ -82,8 +83,7 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 O projeto conta com testes automatizados end-to-end utilizando Playwright.
 
 **Última validação registrada:**
-- 13 testes E2E aprovados.
-- Testes de autenticação e fluxo de checkout.
+- Testes E2E de autenticação, perfil, gerenciamento de carteira e fluxo de checkout.
 - Testes de atualização de pedidos em tempo real.
 - Testes de responsividade.
 
@@ -173,7 +173,8 @@ O GreenMint é um projeto de portfólio com backend e serviços externos simulad
 - A edição de perfil e a alteração de senha são demonstrações client-side/MSW; não substituem autenticação, armazenamento seguro de senhas e validações de um backend real.
 - Os eventos de Socket.IO são simulados.
 - O checkout não realiza transações financeiras reais.
-- Não existe integração real com carteiras, redes blockchain ou contratos inteligentes.
+- O gerenciamento de carteira apenas associa um endereço público à conta; não conecta extensões como MetaMask ou Phantom nem interage com redes blockchain ou contratos inteligentes.
+- Nunca informe frases-semente ou chaves privadas na aplicação.
 
 O objetivo é demonstrar a construção de uma aplicação Front-End com fluxos completos, integração entre diferentes tecnologias e tratamento de cenários comuns de uma aplicação comercial.
 
