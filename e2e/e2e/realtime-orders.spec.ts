@@ -271,6 +271,7 @@ test.describe('Catálogo: filtros e paginação no servidor', () => {
 
     const result = await page.evaluate(async () => {
       const firstParams = new URLSearchParams({
+        search: 'Golden',
         category: 'Música',
         network: 'Solana',
         minPrice: '0.5',
@@ -316,8 +317,8 @@ test.describe('Catálogo: filtros e paginação no servidor', () => {
     expect(result.filtered.items).toHaveLength(1)
     expect(result.filtered.items[0].category).toBe('Música')
     expect(result.filtered.items[0].network).toBe('Solana')
-    expect(result.filtered.items[0].price).toBeGreaterThanOrEqual(0.5)
-    expect(result.filtered.items[0].price).toBeLessThanOrEqual(1.2)
+    expect(result.filtered.items[0].price ?? -1).toBeGreaterThanOrEqual(0.5)
+    expect(result.filtered.items[0].price ?? Infinity).toBeLessThanOrEqual(1.2)
     expect(result.pageOne.total).toBe(9)
     expect(result.pageOne.items).toHaveLength(2)
     expect(result.pageOne.totalPages).toBe(5)
@@ -334,10 +335,11 @@ test.describe('Catálogo: filtros e paginação no servidor', () => {
       const invalidPrice = await fetch('/api/nfts?minPrice=5&maxPrice=1&page=1&limit=6')
       const invalidCategory = await fetch('/api/nfts?category=CategoriaInexistente&page=1&limit=6')
       const excessiveLimit = await fetch('/api/nfts?page=1&limit=100')
-      return [invalidPrice.status, invalidCategory.status, excessiveLimit.status]
+      const invalidPage = await fetch('/api/nfts?page=0&limit=6')
+      return [invalidPrice.status, invalidCategory.status, excessiveLimit.status, invalidPage.status]
     })
 
-    expect(result).toEqual([400, 400, 400])
+    expect(result).toEqual([400, 400, 400, 400])
   })
 })
 
