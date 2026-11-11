@@ -798,6 +798,125 @@ export const handlers = [
     })
   }),
 
+  // Atualizar nome e e-mail do usuário autenticado
+  http.patch('/api/auth/profile', async ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Sessão inválida ou expirada.' },
+        { status: 401 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      name?: string
+      email?: string
+    }
+    const name = body.name?.trim()
+    const email = body.email?.trim().toLowerCase()
+
+    if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return HttpResponse.json(
+        { message: 'Informe um nome e um e-mail válidos.' },
+        { status: 400 },
+      )
+    }
+
+    const users = readStorage<MockUser[]>('greenmint-users', initialUsers)
+    const user = users.find((item) => item.id === session.userId)
+
+    if (!user) {
+      return HttpResponse.json(
+        { message: 'Usuário não encontrado.' },
+        { status: 404 },
+      )
+    }
+
+    const emailInUse = users.some(
+      (item) => item.id !== user.id && item.email.toLowerCase() === email,
+    )
+
+    if (emailInUse) {
+      return HttpResponse.json(
+        { message: 'Este e-mail já está sendo utilizado por outra conta.' },
+        { status: 409 },
+      )
+    }
+
+    user.name = name
+    user.email = email
+    writeStorage('greenmint-users', users)
+
+    return HttpResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    })
+  }),
+
+  // Alterar senha do usuário autenticado
+  http.patch('/api/auth/password', async ({ request }) => {
+    const authorization = request.headers.get('Authorization')
+    const token = authorization?.replace('Bearer ', '')
+    const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
+    const session = sessions.find((item) => item.token === token)
+
+    if (!session) {
+      return HttpResponse.json(
+        { message: 'Sessão inválida ou expirada.' },
+        { status: 401 },
+      )
+    }
+
+    const body = (await request.json()) as {
+      currentPassword?: string
+      newPassword?: string
+    }
+
+    if (
+      typeof body.currentPassword !== 'string' ||
+      typeof body.newPassword !== 'string' ||
+      body.newPassword.length < 6
+    ) {
+      return HttpResponse.json(
+        { message: 'A nova senha precisa ter pelo menos 6 caracteres.' },
+        { status: 400 },
+      )
+    }
+
+    const users = readStorage<MockUser[]>('greenmint-users', initialUsers)
+    const user = users.find((item) => item.id === session.userId)
+
+    if (!user) {
+      return HttpResponse.json(
+        { message: 'Usuário não encontrado.' },
+        { status: 404 },
+      )
+    }
+
+    const currentHash = await hashPassword(body.currentPassword)
+    const currentPasswordIsValid =
+      user.passwordHash === currentHash ||
+      (user.passwordHash === undefined && user.password === body.currentPassword)
+
+    if (!currentPasswordIsValid) {
+      return HttpResponse.json(
+        { message: 'A senha atual está incorreta.' },
+        { status: 400 },
+      )
+    }
+
+    user.passwordHash = await hashPassword(body.newPassword)
+    delete user.password
+    writeStorage('greenmint-users', users)
+
+    return HttpResponse.json({ message: 'Senha alterada com sucesso.' })
+  }),
+
   // Consultar usuário autenticado
   http.get('/api/auth/me', ({ request }) => {
     const authorization = request.headers.get('Authorization')
