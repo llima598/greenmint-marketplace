@@ -16,12 +16,14 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 - Ordenação e paginação.
 - Sincronização dos filtros e da busca com a URL.
 - Página individual com detalhes de cada NFT.
+- Lista de NFTs favoritos, com inclusão e remoção e persistência separada por usuário autenticado.
 
 ### Autenticação e conta
 - Cadastro, login e logout.
 - Gerenciamento de sessão simulada por token.
 - Rotas protegidas.
 - Carrinho associado ao usuário autenticado.
+- Favoritos associados à conta, com acesso dedicado pelo menu.
 
 ### Carrinho e checkout
 - Adição, remoção e atualização de quantidade dos itens.
