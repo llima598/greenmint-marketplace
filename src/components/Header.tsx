@@ -143,6 +143,13 @@ function Header() {
                   </Link>
 
                   <Link
+                    to="/favorites"
+                    className="whitespace-nowrap rounded-full border border-white/30 px-3 py-2 text-sm transition hover:border-[#D9A441] hover:text-[#D9A441] xl:px-4"
+                  >
+                    Favoritos
+                  </Link>
+
+                  <Link
                     to="/orders"
                     className="whitespace-nowrap rounded-full border border-[#D9A441]/40 bg-[#D9A441]/10 px-3 py-2 text-sm font-medium text-[#D9A441] transition hover:border-[#D9A441] hover:bg-[#D9A441]/20 xl:px-4"
                   >
@@ -232,6 +239,14 @@ function Header() {
                     className="text-sm text-white transition hover:text-[#D9A441]"
                   >
                     Meu Perfil
+                  </Link>
+
+                  <Link
+                    to="/favorites"
+                    onClick={closeMenu}
+                    className="text-sm text-white transition hover:text-[#D9A441]"
+                  >
+                    Favoritos
                   </Link>
 
                   <Link
