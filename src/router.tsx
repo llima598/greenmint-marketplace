@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import {
   createRootRoute,
   createRoute,
@@ -30,7 +30,7 @@ function RouteLoading() {
   )
 }
 
-function withSuspense(component: React.ReactNode) {
+function withSuspense(component: ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{component}</Suspense>
 }
 
