@@ -327,6 +327,22 @@ test.describe('Catálogo: filtros e paginação no servidor', () => {
     expect((result.pageOne.items[0].price ?? Infinity)).toBeLessThanOrEqual(result.pageOne.items[1].price ?? Infinity)
   })
 
+
+  test('atualiza a listagem ao trocar de página e aplicar filtros na interface', async ({ page }) => {
+    await page.goto('/')
+    await waitForMocks(page)
+
+    await expect(page.getByText('9 NFTs encontrados')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ver detalhes de Golden Beat #207' })).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Página 2' }).click()
+    await expect(page.getByRole('link', { name: 'Ver detalhes de Golden Beat #207' })).toBeVisible()
+
+    await page.getByRole('checkbox', { name: 'Filtrar por Música' }).click()
+    await expect(page.getByText('1 NFTs encontrados')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ver detalhes de Golden Beat #207' })).toBeVisible()
+  })
+
   test('rejeita filtros e parâmetros de paginação inválidos', async ({ page }) => {
     await page.goto('/')
     await waitForMocks(page)
