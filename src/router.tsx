@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import {
   createRootRoute,
   createRoute,
@@ -8,27 +8,17 @@ import {
 
 import App from './App'
 import ProtectedRoute from './components/ProtectedRoute'
-
-const NftDetails = lazy(() => import('./pages/NftDetails'))
-const Cart = lazy(() => import('./pages/Cart'))
-const Checkout = lazy(() => import('./pages/Checkout'))
-const Login = lazy(() => import('./pages/Login'))
-const Register = lazy(() => import('./pages/Register'))
-const Orders = lazy(() => import('./pages/Orders'))
-const Profile = lazy(() => import('./pages/Profile'))
-const Favorites = lazy(() => import('./pages/Favorites'))
-
-function RouteLoading() {
-  return (
-    <main
-      className="flex min-h-[50vh] items-center justify-center bg-[#140D0A] px-4 text-sm text-[#B7A99A]"
-      role="status"
-      aria-live="polite"
-    >
-      Carregando página...
-    </main>
-  )
-}
+import {
+  Cart,
+  Checkout,
+  Favorites,
+  Login,
+  NftDetails,
+  Orders,
+  Profile,
+  Register,
+  RouteLoading,
+} from './router/lazyPages'
 
 function withSuspense(component: ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{component}</Suspense>
