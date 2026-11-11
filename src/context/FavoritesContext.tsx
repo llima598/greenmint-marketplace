@@ -19,6 +19,7 @@ export function FavoritesProvider({
   children,
 }: FavoritesProviderProps) {
   const { user, token } = useAuth()
+  const userId = user?.id
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
@@ -26,7 +27,7 @@ export function FavoritesProvider({
     let active = true
 
     async function loadFavorites() {
-      if (!user || !token) {
+      if (!userId || !token) {
         setFavoriteIds([])
         setIsLoading(false)
         return
@@ -56,7 +57,7 @@ export function FavoritesProvider({
     return () => {
       active = false
     }
-  }, [user?.id, token])
+  }, [userId, token])
 
   const isFavorite = useCallback(
     (nftId: string) => favoriteIds.includes(nftId),
