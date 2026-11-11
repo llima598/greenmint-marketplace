@@ -337,7 +337,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -504,7 +504,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -676,7 +676,7 @@ export const handlers = [
   http.get('/api/wallet', ({ request }) => {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
     if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
     const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
     return HttpResponse.json(wallets[session.userId] ?? null)
@@ -686,7 +686,7 @@ export const handlers = [
   http.put('/api/wallet', async ({ request }) => {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
     if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
 
     const body = (await request.json()) as { address?: string; network?: string }
@@ -719,7 +719,7 @@ export const handlers = [
   http.delete('/api/wallet', ({ request }) => {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
     if (!session) return HttpResponse.json({ message: 'Sessão inválida ou expirada.' }, { status: 401 })
 
     const wallets = readStorage<Record<string, { address: string; network: string; connectedAt: string }>>('greenmint-wallets', {})
@@ -860,7 +860,7 @@ export const handlers = [
     const authorization = request.headers.get('Authorization')
     const token = authorization?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -920,7 +920,7 @@ export const handlers = [
     const authorization = request.headers.get('Authorization')
     const token = authorization?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -984,7 +984,7 @@ export const handlers = [
 
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
     const activeSession = sessions.find(
-      (item) => item.token === token && (!item.expiresAt || Date.parse(item.expiresAt) > Date.now()),
+      (item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now(),
     )
 
     if (!activeSession) {
@@ -1005,7 +1005,7 @@ export const handlers = [
       [],
     )
 
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -1040,7 +1040,7 @@ export const handlers = [
     const authorization = request.headers.get('Authorization')
     const token = authorization?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -1062,7 +1062,7 @@ export const handlers = [
     const authorization = request.headers.get('Authorization')
     const token = authorization?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
@@ -1097,7 +1097,7 @@ export const handlers = [
     const authorization = request.headers.get('Authorization')
     const token = authorization?.replace('Bearer ', '')
     const sessions = readStorage<MockSession[]>('greenmint-sessions', [])
-    const session = sessions.find((item) => item.token === token)
+    const session = sessions.find((item) => item.token === token && item.expiresAt !== undefined && Date.parse(item.expiresAt) > Date.now())
 
     if (!session) {
       return HttpResponse.json(
