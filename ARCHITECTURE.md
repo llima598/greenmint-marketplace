@@ -2,285 +2,205 @@
 
 ## 1. Visão geral
 
-O GreenMint Marketplace é uma aplicação Front-end desenvolvida com React e TypeScript.
+O GreenMint Marketplace é uma aplicação Front-end desenvolvida com React 19, TypeScript e Vite.
 
-A arquitetura separa responsabilidades entre interface, gerenciamento de estado, navegação, comunicação HTTP e atualizações em tempo real.
+A arquitetura separa responsabilidades entre interface, navegação, estado compartilhado, comunicação HTTP, cache e atualizações em tempo real. Os serviços de backend são simulados com Mock Service Worker (MSW), permitindo executar os fluxos da aplicação sem depender de uma API externa.
 
-Os serviços de backend são simulados com Mock Service Worker (MSW), permitindo executar os principais fluxos da aplicação sem depender de uma API externa.
+**Importante:** o projeto demonstra a integração entre essas camadas no Front-end. Ele não possui backend de produção, pagamentos reais ou integração com blockchain.
 
 ## 2. Tecnologias e responsabilidades
 
 | Tecnologia | Responsabilidade |
 |---|---|
-| React | Construção da interface e composição de componentes |
+| React 19 | Construção da interface e composição de componentes |
 | TypeScript | Tipagem estática |
 | Vite | Desenvolvimento e build |
-| Tailwind CSS | Estilização e responsividade |
-| TanStack Router | Navegação e gerenciamento de rotas |
+| Tailwind CSS v4 | Estilização e responsividade |
+| shadcn/ui e Base UI | Componentes de interface |
+| TanStack Router | Navegação, rotas protegidas e parâmetros de busca |
 | TanStack Query | Requisições, cache e sincronização de dados |
+| React Context | Estado compartilhado de autenticação, carrinho e favoritos |
 | Axios | Comunicação HTTP |
-| React Context | Estado compartilhado de autenticação e carrinho |
 | MSW | Simulação dos serviços REST |
-| Socket.IO Client | Comunicação em tempo real |
-| Playwright | Testes automatizados End-to-End |
+| Socket.IO Client | Recebimento de eventos em tempo real simulados |
+| Playwright | Testes automatizados end-to-end |
 | Oxlint | Análise estática do código |
 
-## 3. Organização de pastas
+## 3. Organização da aplicação
 
-```text
-src/
-├── components/
-│   ├── Footer.tsx
-│   ├── Header.tsx
-│   ├── Hero.tsx
-│   ├── Journal.tsx
-│   ├── Products.tsx
-│   ├── Promos.tsx
-│   ├── PriceChangeNotice.tsx
-│   ├── ProtectedRoute.tsx
-│   └── SocketConnection.tsx
-│
-├── context/
-│   ├── AuthContext.tsx
-│   ├── AuthContextDefinition.ts
-│   ├── CartContext.tsx
-│   ├── CartContextDefinition.ts
-│   ├── useAuth.ts
-│   └── useCart.ts
-│
-├── data/
-│   └── nfts.ts
-│
-├── mocks/
-│   ├── browser.ts
-│   ├── handlers.ts
-│   └── socket.ts
-│
-├── pages/
-│   ├── Cart.tsx
-│   ├── Checkout.tsx
-│   ├── Login.tsx
-│   ├── NftDetails.tsx
-│   ├── Orders.tsx
-│   ├── Profile.tsx
-│   └── Register.tsx
-│
-├── services/
-│   ├── api.ts
-│   ├── nfts.ts
-│   ├── realtime.ts
-│   └── socket.ts
-│
-├── App.tsx
-├── index.css
-├── main.tsx
-└── router.tsx
+A pasta `src` organiza o código por responsabilidade:
 
-e2e/
-└── e2e/
-    ├── auth.spec.ts
-    ├── checkout.spec.ts
-    ├── realtime-orders.spec.ts
-    └── responsive.spec.ts
-```
+- `components/`: componentes reutilizáveis, incluindo cabeçalho, proteção de rotas, aviso de alteração de preço e botão de favoritos.
+- `context/`: provedores e hooks de autenticação, carrinho e favoritos.
+- `data/`: dados iniciais e tipos dos NFTs.
+- `mocks/`: handlers REST, inicialização do MSW e simulação de eventos Socket.IO.
+- `pages/`: páginas do marketplace, detalhes do NFT, login, cadastro, carrinho, checkout, pedidos, favoritos e perfil.
+- `services/`: configuração Axios, consultas de NFTs e integração com eventos em tempo real.
+- `router.tsx` e `router/lazyPages.tsx`: definição das rotas e carregamento sob demanda das páginas.
 
-## 4. Camadas e responsabilidades
+A pasta `e2e/` contém os cenários automatizados do Playwright.
 
-### Components
+## 4. Rotas e navegação
 
-Contém componentes reutilizáveis da interface, como cabeçalho, rodapé, listagem de produtos e integração com atualizações em tempo real.
+O TanStack Router organiza as seguintes rotas:
 
-O componente `SocketConnection` centraliza a inscrição nos eventos recebidos pelo Socket.IO e atualiza o cache do TanStack Query.
+| Rota | Acesso | Responsabilidade |
+|---|---|---|
+| `/` | Público | Catálogo e filtros do marketplace |
+| `/nft/$nftId` | Público | Detalhes de um NFT |
+| `/cart` | Público | Carrinho do visitante ou usuário |
+| `/login` | Público | Autenticação |
+| `/register` | Público | Cadastro |
+| `/checkout` | Protegido | Finalização simulada da compra |
+| `/orders` | Protegido | Histórico de pedidos da conta |
+| `/favorites` | Protegido | NFTs salvos pelo usuário |
+| `/profile` | Protegido | Dados da conta, senha, coleção e carteira |
 
-### Pages
+As páginas são carregadas sob demanda por meio de `React.lazy` e `Suspense`. A proteção das rotas privadas é feita pelo componente `ProtectedRoute`.
 
-Contém as páginas e os fluxos principais da aplicação:
+Na página inicial, os parâmetros de busca, ordenação, preço, categoria, rede e página são validados e sincronizados com a URL.
 
-- Marketplace.
-- Detalhes do NFT.
-- Login e cadastro.
-- Carrinho.
-- Checkout.
-- Perfil.
-- Histórico de pedidos.
+## 5. Catálogo: busca, filtros e paginação
 
-### Context
+A consulta do catálogo é feita pelo endpoint simulado `GET /api/nfts`.
 
-Centraliza os estados compartilhados da aplicação.
+Quando recebe parâmetros de catálogo, o handler do MSW executa:
 
-**AuthContext**
+1. Validação dos parâmetros e dos filtros.
+2. Busca por nome.
+3. Filtro por preço mínimo e máximo.
+4. Filtro por categoria e rede.
+5. Ordenação.
+6. Paginação.
+7. Retorno dos itens da página, total de resultados, página atual, limite, total de páginas e contagens de categorias e redes.
 
-- Gerencia o usuário autenticado.
-- Controla login, cadastro e logout.
-- Mantém o token de autenticação no LocalStorage.
-- Recupera a sessão por meio da API simulada.
-- Disponibiliza os dados e operações de autenticação pelo hook `useAuth`.
+Portanto, busca, filtros, ordenação e paginação são processados no endpoint simulado, e não apenas na interface.
 
-**CartContext**
+Sem parâmetros de catálogo, o endpoint retorna a lista completa de NFTs. Essa resposta também é utilizada por fluxos que precisam consultar o catálogo completo, como a sincronização de preços do carrinho e a montagem da lista de favoritos.
 
-- Gerencia os itens adicionados ao carrinho.
-- Permite adicionar, remover e atualizar quantidades.
-- Gerencia cupons de desconto.
-- Persiste os dados localmente.
-- Mantém os dados do carrinho separados por usuário e para visitantes.
-- Disponibiliza as operações pelo hook `useCart`.
+O estado da navegação é refletido na URL para permitir recarregar ou compartilhar uma consulta.
 
-### Services
+## 6. Gerenciamento de estado e persistência
 
-Responsável pela comunicação com os serviços HTTP e de tempo real.
+A aplicação utiliza ferramentas diferentes de acordo com a responsabilidade:
 
-- `api.ts`: configuração da instância Axios.
-- `socket.ts`: configuração da conexão Socket.IO Client.
-- `realtime.ts`: estruturas e validação de eventos recebidos em tempo real.
-
-### Data
-
-Contém os dados iniciais e os tipos relacionados aos NFTs utilizados pela aplicação.
-
-### Mocks
-
-Contém a infraestrutura de simulação dos serviços.
-
-- `browser.ts`: inicialização do MSW no navegador.
-- `handlers.ts`: interceptação de requisições REST e respostas simuladas.
-- `socket.ts`: simulação das conexões e emissão de eventos em tempo real.
-
-## 5. Gerenciamento de dados e estado
-
-A aplicação utiliza mecanismos diferentes conforme a responsabilidade de cada informação.
-
-| Recurso | Utilização |
+| Recurso | Solução |
 |---|---|
-| React Context | Estado global de autenticação e carrinho |
-| TanStack Query | Requisições, cache e estados de carregamento e erro |
-| TanStack Router | Navegação, rotas e parâmetros |
-| Axios | Comunicação HTTP |
-| LocalStorage | Persistência de sessão, carrinho, cupons e tentativas de checkout |
-| MSW | Simulação dos serviços de backend |
+| Autenticação | `AuthContext` |
+| Carrinho e cupom | `CartContext` |
+| Favoritos | Contexto e hook de favoritos |
+| Dados remotos e cache | TanStack Query |
+| Navegação e filtros | TanStack Router |
+| Requisições HTTP | Axios |
+| Persistência da demonstração | LocalStorage |
+| Backend simulado | MSW |
 
-A busca, os filtros, a ordenação e a paginação do marketplace utilizam parâmetros da URL, permitindo compartilhar e recuperar o estado da navegação.
+O carrinho e o cupom são persistidos em chaves separadas por usuário. Visitantes também possuem uma chave própria. Os dados de sessão e os dados simulados de usuários, pedidos, NFTs, favoritos e carteiras são mantidos no armazenamento local utilizado pelos mocks.
 
-## 6. Fluxo de autenticação
+Ao trocar de conta ou encerrar a sessão, o cache de dados privados é limpo para evitar que informações de uma conta permaneçam disponíveis na sessão seguinte.
 
-1. O usuário acessa a tela de login ou cadastro.
-2. A aplicação envia os dados para o serviço de autenticação.
-3. O MSW intercepta a requisição e executa a validação simulada.
-4. Em caso de sucesso, o token e os dados do usuário são armazenados no estado da aplicação.
-5. O token é persistido no LocalStorage.
-6. O contexto de autenticação disponibiliza a sessão para os componentes.
-7. Nas próximas inicializações, a aplicação consulta o endpoint de recuperação de sessão.
-8. As rotas protegidas verificam a autenticação antes de permitir o acesso.
+## 7. Autenticação e conta
 
-O logout remove os dados locais da sessão.
+O fluxo de autenticação é executado pelos endpoints simulados do MSW:
 
-## 7. Carrinho e cupons
+1. O usuário realiza login ou cadastro.
+2. O serviço simulado valida os dados e retorna usuário e token.
+3. O token é armazenado em `localStorage`.
+4. O `AuthContext` mantém os dados da sessão disponíveis para a aplicação.
+5. Ao iniciar a aplicação, o contexto consulta `GET /api/auth/me` para recuperar e validar a sessão.
+6. As rotas protegidas verificam se há usuário autenticado.
 
-O carrinho é gerenciado pelo `CartContext` e possui persistência local.
+O contexto também oferece operações para logout, atualização de perfil e alteração de senha.
 
-Os dados são separados de acordo com o usuário autenticado. Visitantes também podem manter itens no carrinho por meio de uma chave própria no LocalStorage.
+Na página de perfil, o usuário pode:
+- Atualizar nome e e-mail.
+- Alterar a senha informando a senha atual.
+- Consultar a seção “Minha coleção”, formada pelos NFTs presentes em pedidos confirmados.
+- Vincular ou desvincular um endereço público de carteira nas redes Ethereum, Polygon ou Solana.
 
-As operações disponíveis incluem:
+A edição de perfil, senha e carteira utiliza endpoints REST simulados. A carteira é apenas um endereço público associado à conta; não há conexão com extensões ou assinatura de transações.
 
-- Adicionar NFTs.
-- Remover NFTs.
-- Atualizar quantidades.
-- Limpar o carrinho.
-- Aplicar e remover cupons de desconto.
+## 8. Favoritos
 
-A validação de cupons é realizada por meio de um endpoint REST simulado.
+Os favoritos são associados ao usuário autenticado e gerenciados por um contexto próprio.
 
-O cupom de demonstração `GREENMINT10` concede 10% de desconto. O carrinho calcula subtotal, desconto e total, e os valores são utilizados na etapa de checkout.
+O componente `FavoriteButton` permite adicionar ou remover um NFT. A página `/favorites` consulta os IDs salvos e os combina com os dados do catálogo para exibir os NFTs correspondentes.
 
-## 8. Fluxo de compra
+Os handlers simulam os endpoints:
+- `GET /api/favorites`
+- `POST /api/favorites`
+- `DELETE /api/favorites/:nftId`
 
-O processo de compra utiliza operações simuladas de criação de pedido e pagamento.
+A rota de favoritos é protegida e os dados são separados por conta no armazenamento dos mocks.
 
-1. O usuário adiciona NFTs ao carrinho.
-2. O carrinho mantém os itens e o cupom aplicado.
-3. O usuário acessa o checkout.
-4. A aplicação calcula os valores do pedido.
-5. Uma chave de idempotência é criada ou recuperada para a tentativa de compra.
-6. A aplicação envia a solicitação de criação do pedido.
-7. O serviço simulado revalida os preços contra o catálogo atual. Se algum preço mudou, responde `409 PRICE_CHANGED`: o cliente atualiza o catálogo, o carrinho exibe a alteração e a compra só prossegue depois que o usuário revisa o pedido.
-8. O serviço simulado registra ou recupera o pedido correspondente.
-9. A aplicação solicita o processamento do pagamento.
-10. Se o pagamento for aprovado (`200`), o pedido passa a `confirmed`, a compra é confirmada e o carrinho é limpo.
-11. Se o pagamento for recusado (`402`), o pedido passa a `rejected` (estado terminal), os itens são preservados e a chave de idempotência é descartada, de modo que a nova tentativa cria outro pedido.
-12. Se o pagamento ficar pendente (`202`), o pedido permanece `pending` e a chave é mantida: reenviar a compra recupera o mesmo pedido.
+## 9. Carrinho, cupons e checkout
+
+O carrinho permite adicionar e remover NFTs, alterar quantidades e aplicar ou remover cupons.
+
+O cupom de demonstração `GREENMINT10` concede 10% de desconto. A validação é realizada pelo endpoint simulado `POST /api/coupons/validate`.
+
+O checkout simula os seguintes resultados:
+- **Aprovado:** pedido confirmado e carrinho limpo.
+- **Recusado:** pedido rejeitado e itens preservados para uma nova tentativa.
+- **Pendente:** pedido permanece pendente e pode ser recuperado pela mesma chave de idempotência.
 
 ### Idempotência
 
-A aplicação utiliza uma chave de idempotência associada ao usuário e à composição do carrinho.
+A criação de pedidos utiliza uma chave de idempotência associada à tentativa de compra.
 
-A chave é persistida localmente e reutilizada em novas tentativas da mesma compra, evitando a criação de pedidos duplicados quando a solicitação é repetida com a mesma chave.
+O serviço simulado também calcula uma impressão digital do conteúdo do pedido:
+- Mesma chave e mesmo conteúdo: recupera o pedido existente.
+- Mesma chave e conteúdo diferente: retorna conflito `409 IDEMPOTENCY_CONFLICT`.
 
-No serviço simulado, cada pedido guarda uma impressão digital do conteúdo enviado (itens, quantidades, preços e total):
+### Revalidação de preço
 
-- mesma chave e mesmo conteúdo: retorna o pedido já criado (`200`);
-- mesma chave e conteúdo diferente: retorna `409 IDEMPOTENCY_CONFLICT`.
+Antes de criar o pedido, o serviço simulado compara os preços enviados com os valores atuais do catálogo. Se houver divergência, retorna `409 PRICE_CHANGED`. A interface atualiza os dados e solicita que o usuário revise a alteração antes de confirmar a compra.
 
-## 9. Comunicação em tempo real
+## 10. Atualizações em tempo real
 
-A aplicação utiliza Socket.IO Client para receber atualizações simuladas pelo MSW.
+O projeto utiliza Socket.IO Client com transporte simulado pela integração entre MSW e `@mswjs/socket.io-binding`.
 
-Os eventos implementados são:
+Os eventos principais são:
+- `nft.updated`: alteração de dados de um NFT.
+- `order.updated`: alteração de um pedido.
 
-- `nft.updated`: comunica alterações nos dados de NFTs.
-- `order.updated`: comunica alterações nos pedidos.
+O componente de conexão recebe os eventos e atualiza o cache do TanStack Query. Os eventos possuem identificador e versão para ajudar a descartar mensagens duplicadas ou desatualizadas. Eventos de pedidos são associados ao usuário correspondente.
 
-O componente `SocketConnection` recebe os eventos e atualiza o cache do TanStack Query.
+Quando um NFT tem o preço atualizado, o catálogo e o carrinho são sincronizados. O componente `PriceChangeNotice` informa a alteração, e o fluxo de compra exige a revisão do novo valor. A validação do endpoint de pedidos também impede a finalização com preço desatualizado.
 
-O tratamento considera identificadores de eventos, recursos e versões para evitar o processamento de eventos duplicados ou desatualizados.
+A comunicação é simulada no navegador; não existe um servidor Socket.IO de produção.
 
-A identificação da sessão permite associar conexões ao usuário autenticado e restringir eventos de pedidos ao usuário correspondente.
+## 11. Principais endpoints simulados
 
-A conexão também contempla reconexão automática e atualização dos dados após o restabelecimento da conexão.
+Todos os endpoints abaixo são interceptados pelo MSW. As rotas privadas exigem o token de demonstração no cabeçalho `Authorization`.
 
-### Preço alterado durante a compra
+| Método e rota | Finalidade |
+|---|---|
+| `POST /api/auth/register` | Cadastro |
+| `POST /api/auth/login` | Login |
+| `GET /api/auth/me` | Recuperação e validação da sessão |
+| `POST /api/auth/logout` | Encerramento da sessão simulada |
+| `PATCH /api/auth/profile` | Atualização de nome e e-mail |
+| `PATCH /api/auth/password` | Alteração de senha |
+| `GET /api/nfts` | Catálogo, busca, filtros, ordenação e paginação |
+| `GET /api/nfts/:id` | Detalhes de um NFT |
+| `PATCH /api/nfts/:id` | Atualização simulada de NFT e emissão de evento |
+| `GET /api/favorites` | Consulta dos favoritos da conta |
+| `POST /api/favorites` | Adição de favorito |
+| `DELETE /api/favorites/:nftId` | Remoção de favorito |
+| `GET /api/wallet` | Consulta da carteira vinculada |
+| `PUT /api/wallet` | Vinculação ou atualização de endereço público |
+| `DELETE /api/wallet` | Desvinculação da carteira |
+| `POST /api/coupons/validate` | Validação de cupom |
+| `GET /api/orders` | Consulta dos pedidos da conta |
+| `POST /api/orders` | Criação ou recuperação idempotente de pedido |
+| `POST /api/payments` | Simulação do resultado do pagamento |
 
-O `nft.updated` atualiza o cache `['nfts']` (catálogo) e `['nfts', id]` (detalhe). O `CartProvider` observa a mesma chave `['nfts']` e sincroniza o preço dos itens do carrinho com o catálogo. Quando há diferença:
+## 12. Testes e qualidade
 
-1. o preço do item é atualizado e o resumo é recalculado;
-2. a alteração é registrada (`priceChanges`) e o componente `PriceChangeNotice` a exibe no carrinho e no checkout, com `role="alert"`;
-3. o botão "Confirmar compra" fica desabilitado até o usuário reconhecer a alteração;
-4. mesmo que o cliente envie um preço antigo, o servidor simulado recusa a criação do pedido com `409 PRICE_CHANGED`.
+O Playwright é utilizado nos testes end-to-end. Os cenários existentes cobrem fluxos como autenticação, checkout, atualização de pedidos em tempo real e comportamento responsivo, além de cenários de filtros, paginação, alteração de preço e idempotência.
 
-A mesma sincronização acontece após reconexão (a invalidação de `['nfts']` busca os dados atuais na API REST) e ao abrir o carrinho com preços salvos antes de uma alteração.
-
-## 10. Simulação de serviços
-
-O Mock Service Worker intercepta as requisições HTTP e fornece respostas para os fluxos da aplicação.
-
-Os handlers simulam operações como:
-
-- Consulta e atualização de NFTs.
-- Cadastro, login e recuperação de sessão.
-- Consulta e criação de pedidos.
-- Processamento de pagamentos.
-- Validação de cupons.
-
-Os dados simulados utilizam o LocalStorage para manter informações entre atualizações da página.
-
-A comunicação em tempo real é simulada por meio da integração entre MSW, `@mswjs/socket.io-binding` e Socket.IO Client.
-
-Essa abordagem permite testar a integração entre as camadas da aplicação sem depender de um backend externo.
-
-## 11. Testes e qualidade
-
-O projeto utiliza Playwright para testes automatizados End-to-End.
-
-Os cenários automatizados cobrem:
-
-- Fluxos de autenticação.
-- Checkout com pagamento aprovado e recusado.
-- Alteração de preço via Socket.IO durante o checkout, com bloqueio da compra até a revisão.
-- Idempotência de pedidos (recuperação do mesmo pedido e `409` com conteúdo diferente) e rejeição de preço desatualizado.
-- Cadastro sem senha em texto puro.
-- Comportamento responsivo em diferentes resoluções.
-
-As resoluções verificadas incluem 375 px, 768 px, 1024 px e 1440 px.
-
-O Oxlint é utilizado para análise estática do código, enquanto o processo de build executa a verificação de tipos do TypeScript antes de gerar os arquivos de produção.
+O Oxlint realiza a análise estática do código. O comando de build executa a verificação de tipos do TypeScript antes de gerar os arquivos de produção.
 
 Comandos disponíveis:
 
@@ -290,89 +210,20 @@ npm run build
 npm run test:e2e
 ```
 
-## 12. Cache e sincronização (TanStack Query)
+A quantidade de testes pode mudar conforme novos cenários forem adicionados.
 
-O `QueryClient` usa os valores padrão da biblioteca. Eles foram mantidos de propósito e estão registrados aqui para que o comportamento seja conhecido:
+## 13. Limitações e escopo da simulação
 
-| Item | Valor | Observação |
-|---|---|---|
-| `staleTime` | 0 | Os dados são considerados antigos logo após a busca e são revalidados ao montar a tela. |
-| `gcTime` | 5 min | Consultas sem uso são descartadas depois desse período. |
-| `retry` (consultas) | 3, com espera crescente | O detalhe do NFT usa `retry: false` para exibir "NFT não encontrado" imediatamente. |
-| `retry` (mutations) | 0 | O checkout nunca repete automaticamente: reenvios são manuais e protegidos pela chave de idempotência. |
-| `refetchOnWindowFocus` / `refetchOnReconnect` | ativados | Ajudam a reconciliar o cache com a API. |
+O GreenMint é um projeto de portfólio focado no desenvolvimento Front-end. As funcionalidades de backend são simuladas.
 
-Chaves de consulta:
+- Não existe backend de produção ou banco de dados remoto.
+- Os dados dos mocks são mantidos no armazenamento local do navegador.
+- A autenticação é demonstrativa. O hash de senha utiliza SHA-256 com prefixo fixo; isso não substitui algoritmos próprios para armazenamento seguro de senhas em um servidor real, como Argon2, bcrypt ou scrypt com salt individual.
+- O token e os dados da sessão ficam no navegador; o fluxo não deve ser utilizado como modelo de segurança para produção.
+- A carteira apenas associa um endereço público à conta. Não conecta MetaMask, Phantom ou outras carteiras, não solicita frases-semente ou chaves privadas e não interage com blockchain ou contratos inteligentes.
+- O checkout e os pagamentos são simulados e não movimentam dinheiro ou criptoativos reais.
+- Os eventos Socket.IO são simulados pelo MSW e não representam uma infraestrutura de tempo real em produção.
+- Os valores em ETH são utilizados para fins de demonstração; não há cotação real nem liquidação on-chain.
 
-| Chave | Conteúdo |
-|---|---|
-| `['nfts']` | Lista de NFTs (catálogo e carrinho). |
-| `['nfts', id]` | Detalhe de um NFT. |
-| `['orders', userId]` | Pedidos do usuário autenticado. |
+A arquitetura foi organizada para demonstrar separação de responsabilidades, gerenciamento de estado, integração HTTP, cache, atualização em tempo real simulada, fluxos de compra e testes automatizados.
 
-Atualização do cache por eventos:
-
-- `nft.updated`: `setQueryData` em `['nfts']` e `['nfts', id]`.
-- `order.updated`: `setQueryData` em `['orders', userId]`, apenas para o usuário dono do pedido.
-- Conexão ou reconexão: `invalidateQueries` em `['nfts']` e `['orders', userId]`, que busca novamente os dados na API REST. A REST é a fonte de verdade, e os eventos apenas antecipam a atualização.
-
-Eventos duplicados ou antigos são descartados por `eventId` e pela versão mais recente conhecida do recurso (`createRealtimeEventGuard`). O controle fica em memória e é reiniciado ao recarregar a página, quando os dados voltam da REST.
-
-## 13. Contratos REST e eventos
-
-Todas as rotas ficam sob `/api` e são interceptadas pelo MSW. Rotas privadas usam `Authorization: Bearer <token>`.
-
-| Método e rota | Sucesso | Erros |
-|---|---|---|
-| `POST /auth/register` `{ name, email, password }` | `201 { user, token }` | `400` campos faltando, `409` e-mail já cadastrado |
-| `POST /auth/login` `{ email, password }` | `200 { user, token }` | `401` credenciais inválidas |
-| `GET /auth/me` | `200 { id, name, email }` | `401` sessão inválida, `404` usuário inexistente |
-| `GET /nfts` | `200 NFT[]` | — |
-| `GET /nfts/:id` | `200 NFT` | `404` NFT inexistente |
-| `PATCH /nfts/:id` `{ name?, price?, category?, network? }` | `200 NFT` e evento `nft.updated` | `400` validação, `404` |
-| `POST /coupons/validate` `{ code }` | `200 { code, discountPercentage, message }` | `400` cupom inválido ou expirado |
-| `GET /orders` | `200 Order[]` do usuário | `401` |
-| `POST /orders` com `Idempotency-Key` `{ items, subtotal, discount, coupon, total }` | `201` pedido criado ou `200` pedido recuperado, e evento `order.updated` | `400`, `401`, `409 PRICE_CHANGED`, `409 IDEMPOTENCY_CONFLICT` |
-| `POST /payments` `{ orderId, total, paymentMethod }` | `200 approved`, `202 pending` | `402 rejected`, `400`, `401`, `404`, `409` pedido que não aguarda pagamento |
-
-Evento Socket.IO (`nft.updated` e `order.updated`):
-
-```ts
-interface RealtimeEvent<T> {
-  eventId: string      // identidade estável do evento
-  resource: 'nft' | 'order'
-  resourceId: string   // recurso afetado
-  version: number      // cresce a cada alteração do recurso
-  userId?: string      // presente nos eventos de pedido
-  data: T
-}
-```
-
-Transporte simulado: o MSW intercepta a conexão WebSocket (`ws.link`) e `@mswjs/socket.io-binding` implementa o protocolo Socket.IO no navegador. O `socket.io-client` real conecta e recebe os eventos emitidos pelos handlers REST (`emitRealtime`). Limitações: o servidor simulado existe apenas na aba aberta (não há comunicação entre abas) e as conexões vivem enquanto o Service Worker estiver ativo.
-
-## 14. Sessão e isolamento de dados
-
-- O login e o cadastro retornam um token, guardado em `localStorage` (`greenmint-token`).
-- Ao iniciar, o `AuthProvider` consulta `GET /auth/me`. Se a resposta for `401`, o token é descartado.
-- O carrinho e o cupom ficam em chaves por usuário (`greenmint-cart-<id>`) e por visitante (`greenmint-cart-guest`).
-- No login, logout e troca de usuário, o cache `['orders']` é removido para que dados privados não fiquem acessíveis a outra sessão.
-- O socket envia `client:identify` com o token, e o servidor simulado só entrega eventos de pedido ao usuário dono.
-- Os pedidos são filtrados por usuário no `GET /orders`.
-- As senhas são guardadas como hash SHA-256 (com prefixo fixo) no mock. Usuários antigos com senha em texto puro são migrados no primeiro login.
-
-## 15. Limitações e escopo da simulação
-
-O GreenMint Marketplace é uma aplicação Front-end demonstrativa.
-
-- Não existe integração com uma blockchain real.
-- Os pagamentos em ETH são simulados.
-- Os serviços REST e eventos Socket.IO são simulados pelo MSW.
-- Os dados persistidos dependem do armazenamento local do navegador.
-- A autenticação é demonstrativa e não substitui um sistema real de autenticação em produção: o hash usa SHA-256 simples (em produção seria bcrypt, scrypt ou argon2 no servidor, com salt por usuário), as sessões não expiram e o logout não invalida o token no servidor simulado.
-- Os valores em ETH trafegam como `number` e os totais são calculados no cliente. Uma versão completa usaria strings decimais e um endpoint de cotação com taxa de rede.
-- A filtragem, a ordenação e a paginação do catálogo acontecem no cliente, sobre a lista completa retornada por `GET /nfts`. O estado fica na URL.
-- Favoritos, carteiras, edição de perfil, avatar e senha, atualização otimista, expiração de sessão e cenários configuráveis de latência e falha não foram implementados.
-- A revalidação antes da compra considera apenas o preço (e a existência do NFT). Não há controle de disponibilidade por edição.
-- Um pedido pendente é recuperado reenviando a compra, que reaproveita a chave de idempotência. Ainda não há tela dedicada de acompanhamento de pedido pendente após recarregar a página.
-
-A arquitetura foi organizada para demonstrar separação de responsabilidades, gerenciamento de estado, comunicação HTTP, atualização em tempo real e testes automatizados.
