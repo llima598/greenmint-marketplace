@@ -27,6 +27,7 @@ O projeto reúne funcionalidades de navegação por catálogo, autenticação, f
 - Carrinho associado ao usuário autenticado.
 - Favoritos associados à conta, com acesso dedicado pelo menu.
 - Edição de nome e e-mail, com validação de formato e prevenção de e-mails duplicados.
+- Área “Minha coleção”, que reúne os NFTs de pedidos confirmados da conta autenticada.
 - Alteração de senha mediante confirmação da senha atual e validação da nova senha.
 - Vinculação e desvinculação de endereço público de carteira nas redes Ethereum, Polygon e Solana, com validação básica do formato e persistência por usuário no MSW.
 
